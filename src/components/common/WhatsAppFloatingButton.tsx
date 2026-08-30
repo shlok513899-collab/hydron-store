@@ -3,12 +3,17 @@ import { MessageCircle, X, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
 export const WhatsAppFloatingButton: React.FC = () => {
-  const { storeSettings } = useStore();
+  const { storeSettings, trackAndOpenWhatsApp } = useStore();
   const [isOpen, setIsOpen] = useState(false);
 
   const num = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
   const defaultText = encodeURIComponent('Hi Hydron Team! I am browsing the store and have a question about your insulated bottles.');
   const waUrl = `https://wa.me/${num}?text=${defaultText}`;
+
+  const handleStartChat = () => {
+    setIsOpen(false);
+    trackAndOpenWhatsApp(waUrl, 'FLOATING_CONCIERGE');
+  };
 
   return (
     <div className="fixed bottom-18 sm:bottom-6 right-4 sm:right-6 z-35 flex flex-col items-end">
@@ -29,7 +34,7 @@ export const WhatsAppFloatingButton: React.FC = () => {
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-zinc-400 hover:text-white transition-colors p-1"
+              className="text-zinc-400 hover:text-white transition-colors p-1 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -39,16 +44,13 @@ export const WhatsAppFloatingButton: React.FC = () => {
             Welcome to Hydron! Have a question about bottle capacities, materials, or placing a direct custom order?
           </p>
 
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setIsOpen(false)}
-            className="w-full bg-white text-black text-xs font-bold uppercase tracking-wider py-2.5 px-3 flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors"
+          <button
+            onClick={handleStartChat}
+            className="w-full bg-white text-black text-xs font-bold uppercase tracking-wider py-2.5 px-3 flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors cursor-pointer"
           >
             <span>START WHATSAPP CHAT</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </a>
+          </button>
         </div>
       )}
 

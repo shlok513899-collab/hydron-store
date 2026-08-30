@@ -24,7 +24,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
   onClose,
   onViewFullDetails 
 }) => {
-  const { storeSettings, addToCart, generateProductWhatsAppUrl } = useStore();
+  const { storeSettings, addToCart, generateProductWhatsAppUrl, trackAndOpenWhatsApp } = useStore();
 
   if (!product) return null;
 
@@ -43,7 +43,10 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
 
   const handleWhatsApp = () => {
     const url = generateProductWhatsAppUrl(product, quantity, selectedColor, selectedCapacity);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    trackAndOpenWhatsApp(url, 'QUICK_VIEW_BUY_NOW', {
+      productId: product.id,
+      productName: product.name,
+    });
   };
 
   const handleAddToCart = () => {

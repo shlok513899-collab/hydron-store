@@ -49,27 +49,27 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ type }) => {
 
       case 'returns':
         return {
-          title: 'RETURNS & 30-DAY EXCHANGE POLICY',
-          eyebrow: 'LEGAL & OPERATIONAL GUIDELINES',
-          subtitle: 'Our ironclad guarantee against transit damage, manufacturing flaws, or insulation failure.',
+          title: 'NO RETURN, REFUND & RTO POLICY',
+          eyebrow: 'HYGIENE & DISPATCH PROTOCOLS',
+          subtitle: 'To ensure 100% sterile food-grade safety and prevent transit complications, all Hydron drinkware sales are final.',
           lastUpdated: 'August 2026',
           content: '',
           sections: [
             {
-              heading: '1. 30-Day Transit Protection',
-              content: 'If your Hydron bottle arrives with any cosmetic defect, denting, or missing lid component, notify our WhatsApp Concierge within 48 hours of delivery with a quick photograph. We will dispatch an immediate replacement unit with zero return shipping cost to you.'
+              heading: '1. Strict No-Return & No-Refund Policy',
+              content: 'Because hydration vessels come into direct personal oral contact, Hydron enforces an uncompromising food-grade hygiene policy. We do not accept returns, refunds, or exchanges for change of mind or personal preference once an order has been confirmed and dispatched.'
             },
             {
-              heading: '2. 2-Year TempShield™ Warranty Claim',
-              content: 'All Hydron stainless steel and titanium vessels include a 2-Year TempLock™ insulation warranty. If the vacuum seal fails and the exterior of the bottle begins sweating or heating up under normal usage, we will replace the bottle body.'
+              heading: '2. Zero RTO (Return to Origin) Acceptance',
+              content: 'Customers are requested to provide accurate contact numbers and complete delivery addresses during order placement. Doorstep refusals, customer unavailability, or unauthorized return shipments marked as RTO will not be eligible for refunds or cancellations.'
             },
             {
-              heading: '3. Return Eligibility Requirements',
-              content: 'To be eligible for an exchange or refund:\n• The item must be unused, unwashed, and in the original Hydron kraft packaging.\n• Proof of purchase (WhatsApp order transcript or order ID) must be provided.\n• Custom laser-engraved personalized bottles are non-refundable unless defective.'
+              heading: '3. In-Transit Damage Replacement (Unboxing Video Required)',
+              content: 'Every parcel is packed in impact-resistant protective packaging. In the rare event that your product arrives visibly dented, scratched, or defective upon delivery, you must notify our WhatsApp Concierge within 24 hours of delivery accompanied by an uncut parcel unboxing video. Upon verification, our team will dispatch an immediate direct replacement at zero cost.'
             },
             {
-              heading: '4. Fast Refund Processing',
-              content: 'Approved refunds are returned to your original payment method (UPI / Bank Transfer / Card) within 3–5 business days following return inspection.'
+              heading: '4. 2-Year Craftsmanship & Insulation Warranty',
+              content: 'While sales are final and non-returnable, your drinkware is protected by our signature 2-Year TempShield™ Warranty covering vacuum insulation loss and structural manufacturing defects.'
             }
           ]
         };

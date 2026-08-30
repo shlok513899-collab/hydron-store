@@ -1,15 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   collection, 
   doc, 
-  getDocs, 
   setDoc, 
   updateDoc, 
   deleteDoc, 
-  query, 
-  where, 
-  orderBy,
-  onSnapshot 
+  onSnapshot,
+  increment 
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { 
@@ -23,12 +20,14 @@ import {
   Product, 
   ProductOptionColor, 
   Review, 
-  StoreSettings 
+  StoreSettings,
+  WhatsAppAnalytics,
+  WhatsAppClickEvent 
 } from '../types';
 import { 
   DEFAULT_CATEGORIES, 
   DEFAULT_CMS_PAGES, 
-  DEFAULT_FAQS,
+  DEFAULT_FAQS, 
   DEFAULT_HOMEPAGE_CONTENT, 
   DEFAULT_REVIEWS, 
   DEFAULT_STORE_SETTINGS, 
@@ -47,6 +46,8 @@ interface StoreContextType {
   homepageContent: HomepageContent;
   storeSettings: StoreSettings;
   cmsPages: Record<string, CMSPage>;
+  whatsappClicks: WhatsAppClickEvent[];
+  whatsappAnalytics: WhatsAppAnalytics;
   isLoading: boolean;
   
   // Cart
@@ -66,10 +67,12 @@ interface StoreContextType {
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
 
-  // WhatsApp helpers
+  // WhatsApp helpers & tracking
   generateProductWhatsAppUrl: (product: Product, quantity?: number, color?: ProductOptionColor, capacity?: string) => string;
   generateCartWhatsAppUrl: (customerDetails?: { name?: string; address?: string; mobile?: string }) => string;
   createWhatsAppOrder: (order: Partial<Order>) => Promise<string>;
+  trackWhatsAppClick: (source: string, metadata?: { productId?: string; productName?: string; orderNumber?: string; customerName?: string; customerMobile?: string }) => Promise<void>;
+  trackAndOpenWhatsApp: (url: string, source: string, metadata?: { productId?: string; productName?: string; orderNumber?: string; customerName?: string; customerMobile?: string }) => void;
   
   // Interactions
   submitEnquiry: (enquiry: Omit<LeadEnquiry, 'id' | 'createdAt' | 'status'>) => Promise<void>;
@@ -98,21 +101,20 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, isAdmin } = useAuth();
-  const hasSeededRef = useRef(false);
 
-  // Initialize from LocalStorage or Fallbacks for zero-flicker startup
+  // Initialize from LocalStorage or empty state - NEVER auto-load demo products for fresh database
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_products_v2');
-      return saved ? JSON.parse(saved) : DEMO_PRODUCTS;
+      const saved = localStorage.getItem('hydron_products_v4');
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return DEMO_PRODUCTS;
+      return [];
     }
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_categories_v2');
+      const saved = localStorage.getItem('hydron_categories_v4');
       return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
     } catch {
       return DEFAULT_CATEGORIES;
@@ -121,7 +123,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_orders_v2');
+      const saved = localStorage.getItem('hydron_orders_v4');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -130,7 +132,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [enquiries, setEnquiries] = useState<LeadEnquiry[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_enquiries_v2');
+      const saved = localStorage.getItem('hydron_enquiries_v4');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -139,7 +141,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [reviews, setReviews] = useState<Review[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_reviews_v2');
+      const saved = localStorage.getItem('hydron_reviews_v4');
       return saved ? JSON.parse(saved) : DEFAULT_REVIEWS;
     } catch {
       return DEFAULT_REVIEWS;
@@ -148,7 +150,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [faqs, setFaqs] = useState<FAQ[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_faqs_v2');
+      const saved = localStorage.getItem('hydron_faqs_v4');
       return saved ? JSON.parse(saved) : DEFAULT_FAQS;
     } catch {
       return DEFAULT_FAQS;
@@ -157,7 +159,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [homepageContent, setHomepageContent] = useState<HomepageContent>(() => {
     try {
-      const saved = localStorage.getItem('hydron_homepage_cms_v2');
+      const saved = localStorage.getItem('hydron_homepage_cms_v4');
       return saved ? JSON.parse(saved) : DEFAULT_HOMEPAGE_CONTENT;
     } catch {
       return DEFAULT_HOMEPAGE_CONTENT;
@@ -166,7 +168,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
     try {
-      const saved = localStorage.getItem('hydron_settings_v2');
+      const saved = localStorage.getItem('hydron_settings_v4');
       return saved ? JSON.parse(saved) : DEFAULT_STORE_SETTINGS;
     } catch {
       return DEFAULT_STORE_SETTINGS;
@@ -175,12 +177,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [cmsPages, setCmsPages] = useState<Record<string, CMSPage>>(() => {
     try {
-      const saved = localStorage.getItem('hydron_cms_pages_v2');
+      const saved = localStorage.getItem('hydron_cms_pages_v4');
       if (saved) return JSON.parse(saved);
     } catch {}
     const map: Record<string, CMSPage> = {};
     DEFAULT_CMS_PAGES.forEach(p => { map[p.slug] = p; });
     return map;
+  });
+
+  const [whatsappClicks, setWhatsappClicks] = useState<WhatsAppClickEvent[]>([]);
+  const [whatsappAnalytics, setWhatsappAnalytics] = useState<WhatsAppAnalytics>({
+    totalClicks: 0,
+    productClicks: 0,
+    cartClicks: 0,
+    floatingClicks: 0,
+    contactClicks: 0,
   });
   
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -188,7 +199,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Cart State with LocalStorage persistence
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_cart_v2');
+      const saved = localStorage.getItem('hydron_cart_v4');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -201,94 +212,74 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Synchronize localStorage caches
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_cart_v2', JSON.stringify(cartItems));
+      localStorage.setItem('hydron_cart_v4', JSON.stringify(cartItems));
     } catch {}
   }, [cartItems]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_products_v2', JSON.stringify(products));
+      localStorage.setItem('hydron_products_v4', JSON.stringify(products));
     } catch {}
   }, [products]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_categories_v2', JSON.stringify(categories));
+      localStorage.setItem('hydron_categories_v4', JSON.stringify(categories));
     } catch {}
   }, [categories]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_reviews_v2', JSON.stringify(reviews));
+      localStorage.setItem('hydron_reviews_v4', JSON.stringify(reviews));
     } catch {}
   }, [reviews]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_faqs_v2', JSON.stringify(faqs));
+      localStorage.setItem('hydron_faqs_v4', JSON.stringify(faqs));
     } catch {}
   }, [faqs]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_homepage_cms_v2', JSON.stringify(homepageContent));
+      localStorage.setItem('hydron_homepage_cms_v4', JSON.stringify(homepageContent));
     } catch {}
   }, [homepageContent]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_settings_v2', JSON.stringify(storeSettings));
+      localStorage.setItem('hydron_settings_v4', JSON.stringify(storeSettings));
     } catch {}
   }, [storeSettings]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_cms_pages_v2', JSON.stringify(cmsPages));
+      localStorage.setItem('hydron_cms_pages_v4', JSON.stringify(cmsPages));
     } catch {}
   }, [cmsPages]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_orders_v2', JSON.stringify(orders));
+      localStorage.setItem('hydron_orders_v4', JSON.stringify(orders));
     } catch {}
   }, [orders]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_enquiries_v2', JSON.stringify(enquiries));
+      localStorage.setItem('hydron_enquiries_v4', JSON.stringify(enquiries));
     } catch {}
   }, [enquiries]);
 
-  // Seed default data if database is fresh
-  const autoSeedIfEmpty = async () => {
-    if (hasSeededRef.current) return;
-    try {
-      const prodSnap = await getDocs(collection(db, 'products'));
-      if (prodSnap.empty) {
-        hasSeededRef.current = true;
-        console.log('Seeding initial Hydron catalog to Firestore...');
-        await seedInitialDataToFirestore();
-      }
-    } catch (e) {
-      console.warn('Auto-seed check note:', e);
-    }
-  };
-
-  // 1. Load / listen to Products in Real Time
+  // 1. Load / listen to Products in Real Time from Firestore
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     try {
       unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
-        if (!snapshot.empty) {
-          const items: Product[] = [];
-          snapshot.forEach((d) => {
-            items.push({ id: d.id, ...d.data() } as Product);
-          });
-          setProducts(items);
-        } else {
-          // If empty in database, trigger auto-seed once
-          autoSeedIfEmpty();
-        }
+        const items: Product[] = [];
+        snapshot.forEach((d) => {
+          items.push({ id: d.id, ...d.data() } as Product);
+        });
+        setProducts(items);
       }, (error) => {
         console.warn('Products real-time sync notice:', error.message);
       });
@@ -450,7 +441,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Enquiries sync notice:', err.message);
       });
     } catch (e) {
-      console.warn('Enquiries listener setup notice:', e);
+      console.warn('Enquiries listener notice:', e);
     }
 
     return () => {
@@ -458,32 +449,149 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // Cart operations
-  const addToCart = (
-    product: Product, 
-    quantity = 1, 
-    color?: ProductOptionColor, 
-    capacity?: string
+  // 8. Load / listen to WhatsApp Clicks & Analytics in Real Time
+  useEffect(() => {
+    let unsubClicks: (() => void) | undefined;
+    let unsubStats: (() => void) | undefined;
+
+    try {
+      unsubClicks = onSnapshot(collection(db, 'whatsapp_clicks'), (snapshot) => {
+        const clicks: WhatsAppClickEvent[] = [];
+        snapshot.forEach((d) => {
+          clicks.push({ id: d.id, ...d.data() } as WhatsAppClickEvent);
+        });
+        clicks.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setWhatsappClicks(clicks);
+      }, (err) => console.warn('WhatsApp clicks sync:', err.message));
+
+      unsubStats = onSnapshot(doc(db, 'analytics', 'whatsapp_stats'), (snap) => {
+        if (snap.exists()) {
+          const d = snap.data();
+          setWhatsappAnalytics({
+            totalClicks: d.totalClicks || 0,
+            productClicks: d.productClicks || 0,
+            cartClicks: d.cartClicks || 0,
+            floatingClicks: d.floatingClicks || 0,
+            contactClicks: d.contactClicks || 0,
+            lastClickTimestamp: d.lastClickTimestamp || undefined
+          });
+        }
+      }, (err) => console.warn('WhatsApp stats sync:', err.message));
+    } catch (err) {
+      console.warn('WhatsApp analytics setup error:', err);
+    }
+
+    return () => {
+      if (unsubClicks) unsubClicks();
+      if (unsubStats) unsubStats();
+    };
+  }, []);
+
+  // Track WhatsApp Click and log in Firestore
+  const trackWhatsAppClick = async (
+    source: string, 
+    metadata?: { 
+      productId?: string; 
+      productName?: string; 
+      orderNumber?: string; 
+      customerName?: string; 
+      customerMobile?: string; 
+    }
   ) => {
-    const selectedColor = color || (product.colors && product.colors[0]) || { name: 'Standard', hex: '#000000' };
-    const selectedCapacity = capacity || (product.capacities && product.capacities[0]) || 'Standard';
+    const clickId = `wa-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const eventData: WhatsAppClickEvent = {
+      id: clickId,
+      source: source || 'UNKNOWN',
+      productId: metadata?.productId,
+      productName: metadata?.productName,
+      orderNumber: metadata?.orderNumber,
+      customerName: metadata?.customerName || currentUser?.displayName || undefined,
+      customerMobile: metadata?.customerMobile || undefined,
+      timestamp: new Date().toISOString(),
+      pageUrl: typeof window !== 'undefined' ? window.location.pathname : '',
+    };
 
-    setCartItems(prev => {
-      const existingIndex = prev.findIndex(
-        item => item.product.id === product.id && 
-                item.selectedColor.name === selectedColor.name && 
-                item.selectedCapacity === selectedCapacity
-      );
-
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex].quantity += quantity;
-        return updated;
-      } else {
-        return [...prev, { product, quantity, selectedColor, selectedCapacity }];
-      }
+    // Update local state optimistically
+    setWhatsappClicks(prev => [eventData, ...prev]);
+    setWhatsappAnalytics(prev => {
+      const isProduct = source.includes('PRODUCT');
+      const isCart = source.includes('CART') || source.includes('CHECKOUT');
+      const isFloating = source.includes('FLOATING');
+      const isContact = source.includes('CONTACT');
+      return {
+        ...prev,
+        totalClicks: prev.totalClicks + 1,
+        productClicks: isProduct ? prev.productClicks + 1 : prev.productClicks,
+        cartClicks: isCart ? prev.cartClicks + 1 : prev.cartClicks,
+        floatingClicks: isFloating ? prev.floatingClicks + 1 : prev.floatingClicks,
+        contactClicks: isContact ? prev.contactClicks + 1 : prev.contactClicks,
+        lastClickTimestamp: new Date().toISOString()
+      };
     });
 
+    // Write event doc to Firestore
+    try {
+      const cleanEvent = sanitizeForFirestore(eventData);
+      await setDoc(doc(db, 'whatsapp_clicks', clickId), cleanEvent);
+      
+      // Update analytics counter doc
+      const isProduct = source.includes('PRODUCT');
+      const isCart = source.includes('CART') || source.includes('CHECKOUT');
+      const isFloating = source.includes('FLOATING');
+      const isContact = source.includes('CONTACT');
+
+      const statsUpdates: Record<string, any> = {
+        totalClicks: increment(1),
+        lastClickTimestamp: new Date().toISOString(),
+      };
+      if (isProduct) statsUpdates.productClicks = increment(1);
+      if (isCart) statsUpdates.cartClicks = increment(1);
+      if (isFloating) statsUpdates.floatingClicks = increment(1);
+      if (isContact) statsUpdates.contactClicks = increment(1);
+
+      await setDoc(doc(db, 'analytics', 'whatsapp_stats'), statsUpdates, { merge: true });
+    } catch (e: any) {
+      console.warn('WhatsApp click sync note:', e?.message || e);
+    }
+  };
+
+  const trackAndOpenWhatsApp = (
+    url: string, 
+    source: string, 
+    metadata?: { 
+      productId?: string; 
+      productName?: string; 
+      orderNumber?: string; 
+      customerName?: string; 
+      customerMobile?: string; 
+    }
+  ) => {
+    // Fire tracking in background
+    trackWhatsAppClick(source, metadata);
+    // Open WhatsApp
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Cart operations
+  const addToCart = (product: Product, quantity = 1, color?: ProductOptionColor, capacity?: string) => {
+    const chosenColor = color || (product.colors && product.colors.length > 0 ? product.colors[0] : { name: 'Matte Onyx', hex: '#18181b' });
+    const chosenCapacity = capacity || (product.capacities && product.capacities.length > 0 ? product.capacities[0] : '750ml');
+
+    setCartItems(prev => {
+      const existingIdx = prev.findIndex(
+        item => 
+          item.product.id === product.id && 
+          item.selectedColor.name === chosenColor.name &&
+          item.selectedCapacity === chosenCapacity
+      );
+
+      if (existingIdx > -1) {
+        const copy = [...prev];
+        copy[existingIdx].quantity += quantity;
+        return copy;
+      }
+      return [...prev, { product, quantity, selectedColor: chosenColor, selectedCapacity: chosenCapacity }];
+    });
     setIsCartOpen(true);
   };
 
@@ -497,9 +605,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     setCartItems(prev => {
-      const updated = [...prev];
-      updated[index].quantity = newQty;
-      return updated;
+      const copy = [...prev];
+      if (copy[index]) {
+        copy[index].quantity = newQty;
+      }
+      return copy;
     });
   };
 
@@ -507,84 +617,83 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCartItems([]);
   };
 
-  const cartSubtotal = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const cartSubtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
 
-  // WhatsApp URL Builders
+  // WhatsApp Order Link Generator
   const generateProductWhatsAppUrl = (
     product: Product, 
     quantity = 1, 
     color?: ProductOptionColor, 
     capacity?: string
-  ) => {
-    const num = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
-    const selColor = color ? color.name : (product.colors[0]?.name || 'Standard');
-    const selCap = capacity || (product.capacities[0] || 'Standard');
+  ): string => {
+    const phone = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
+    const chosenColor = color?.name || (product.colors?.[0]?.name || 'Standard');
+    const chosenCap = capacity || (product.capacities?.[0] || 'Standard');
     const total = product.price * quantity;
-    const currentUrl = typeof window !== 'undefined' ? `${window.location.origin}/product/${product.slug}` : `https://hydronlife.com/product/${product.slug}`;
 
-    const text = 
-`*NEW ORDER ENQUIRY | HYDRON STORE*
-────────────────────────
-*Product:* ${product.name}
-*Option / Color:* ${selColor}
-*Capacity:* ${selCap}
-*Unit Price:* ${storeSettings.currencySymbol}${product.price.toLocaleString('en-IN')}
-*Quantity:* ${quantity}
-*Total Amount:* ${storeSettings.currencySymbol}${total.toLocaleString('en-IN')}
+    const message = [
+      `*HYDRON VIP BOTTLE INQUIRY & DIRECT ORDER*`,
+      `---------------------------------------`,
+      `*Item:* ${product.name}`,
+      `*SKU:* ${product.sku || product.id}`,
+      `*Color:* ${chosenColor}`,
+      `*Capacity:* ${chosenCap}`,
+      `*Quantity:* ${quantity}`,
+      `*Unit Price:* ${storeSettings.currencySymbol}${product.price.toLocaleString('en-IN')}`,
+      `*Total Amount:* ${storeSettings.currencySymbol}${total.toLocaleString('en-IN')}`,
+      `---------------------------------------`,
+      `Hi Hydron Concierge! I want to purchase this flask with express insured shipping. Please share payment instructions and confirm dispatch availability.`,
+      `Product URL: ${typeof window !== 'undefined' ? `${window.location.origin}/product/${product.slug}` : ''}`
+    ].join('\n');
 
-*Product Link:* ${currentUrl}
-────────────────────────
-Hi Hydron Team! I would like to purchase this product. Please share the order confirmation and payment details.`;
-
-    return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 
-  const generateCartWhatsAppUrl = (customerDetails?: { name?: string; address?: string; mobile?: string }) => {
-    const num = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
-    const freeShipping = cartSubtotal >= storeSettings.freeShippingThreshold;
-    const shipping = freeShipping ? 0 : storeSettings.flatShippingRate;
-    const grandTotal = cartSubtotal + shipping;
+  const generateCartWhatsAppUrl = (customerDetails?: { name?: string; address?: string; mobile?: string }): string => {
+    const phone = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
+    const shipping = cartSubtotal >= storeSettings.freeShippingThreshold ? 0 : storeSettings.flatShippingRate;
+    const finalTotal = cartSubtotal + shipping;
 
-    let itemsList = '';
-    cartItems.forEach((item, index) => {
-      const itemTotal = item.product.price * item.quantity;
-      itemsList += `\n${index + 1}. *${item.product.name}*\n   • Color: ${item.selectedColor.name} | Size: ${item.selectedCapacity}\n   • Qty: ${item.quantity} × ${storeSettings.currencySymbol}${item.product.price} = *${storeSettings.currencySymbol}${itemTotal}*\n`;
-    });
+    const itemLines = cartItems.map((it, idx) => 
+      `${idx + 1}. *${it.product.name}* (${it.selectedColor.name} | ${it.selectedCapacity}) x${it.quantity} - ${storeSettings.currencySymbol}${(it.product.price * it.quantity).toLocaleString('en-IN')}`
+    ).join('\n');
 
-    let custInfo = '';
-    if (customerDetails?.name) {
-      custInfo = `\n*CUSTOMER DETAILS:*\n• Name: ${customerDetails.name}\n• Mobile: ${customerDetails.mobile || 'N/A'}\n• Delivery Address: ${customerDetails.address || 'N/A'}\n`;
-    }
+    const message = [
+      `*HYDRON OFFICIAL STORE - NEW CART ORDER*`,
+      `=======================================`,
+      `*ORDER SUMMARY:*`,
+      itemLines,
+      `---------------------------------------`,
+      `*Subtotal:* ${storeSettings.currencySymbol}${cartSubtotal.toLocaleString('en-IN')}`,
+      `*Shipping:* ${shipping === 0 ? 'FREE EXPRESS SHIPPING' : `${storeSettings.currencySymbol}${shipping}`}`,
+      `*ESTIMATED TOTAL:* ${storeSettings.currencySymbol}${finalTotal.toLocaleString('en-IN')}`,
+      `=======================================`,
+      customerDetails?.name ? `*Customer Name:* ${customerDetails.name}` : '',
+      customerDetails?.mobile ? `*Contact Mobile:* ${customerDetails.mobile}` : '',
+      customerDetails?.address ? `*Delivery Address:* ${customerDetails.address}` : '',
+      `=======================================`,
+      `Hi Hydron Concierge! I am ready to confirm this order. Please share UPI / Card payment details and dispatch window.`
+    ].filter(Boolean).join('\n');
 
-    const text = 
-`*NEW CART ORDER | HYDRON PREMIUM STORE*
-────────────────────────
-*ITEMS ORDERED:*${itemsList}
-────────────────────────
-*Subtotal:* ${storeSettings.currencySymbol}${cartSubtotal.toLocaleString('en-IN')}
-*Shipping:* ${freeShipping ? 'FREE' : `${storeSettings.currencySymbol}${shipping}`}
-*Grand Total:* ${storeSettings.currencySymbol}${grandTotal.toLocaleString('en-IN')}${custInfo}
-────────────────────────
-Hi Hydron Team! I would like to place this order now. Please provide invoice and payment link/UPI!`;
-
-    return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 
+  // Create an order record
   const createWhatsAppOrder = async (orderData: Partial<Order>): Promise<string> => {
-    const orderNumber = `HYD-${Date.now().toString().slice(-6)}`;
+    const orderNumber = `HYD-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
     const newOrder: Order = {
       id: orderNumber,
       orderNumber,
-      userId: currentUser?.uid || '',
-      customerName: orderData.customerName || 'Guest Customer',
-      customerEmail: orderData.customerEmail || 'guest@hydron.com',
+      userId: currentUser?.uid || 'guest',
+      customerName: orderData.customerName || 'Guest Patron',
+      customerEmail: orderData.customerEmail || currentUser?.email || 'unregistered@hydron.com',
       customerMobile: orderData.customerMobile || '',
       shippingAddress: orderData.shippingAddress || {
-        street: '',
-        city: '',
-        state: '',
-        pincode: '',
+        street: 'Not specified',
+        city: 'India',
+        state: 'IN',
+        pincode: '000000',
         country: 'India'
       },
       items: orderData.items || cartItems.map(i => ({
@@ -601,16 +710,23 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
       total: orderData.total || (cartSubtotal + (cartSubtotal >= storeSettings.freeShippingThreshold ? 0 : storeSettings.flatShippingRate)),
       status: 'PENDING',
       paymentMethod: 'WHATSAPP_ORDER',
-      orderNote: orderData.orderNote || '',
-      createdAt: new Date().toISOString(),
+      orderNote: orderData.orderNote || 'Order initiated via WhatsApp Checkout',
+      createdAt: new Date().toISOString()
     };
+
+    // Track WhatsApp conversion event
+    trackWhatsAppClick('CART_CHECKOUT_ORDER', {
+      orderNumber,
+      customerName: newOrder.customerName,
+      customerMobile: newOrder.customerMobile
+    });
 
     // Save in Firestore orders collection & optimistic update
     try {
       const cleanOrder = sanitizeForFirestore(newOrder);
       await setDoc(doc(db, 'orders', orderNumber), cleanOrder);
-    } catch (err) {
-      console.warn('Order saved to local state:', err);
+    } catch (err: any) {
+      console.warn('Order saved note:', err?.message || err);
     }
 
     setOrders(prev => [newOrder, ...prev]);
@@ -624,10 +740,11 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     });
   };
 
-  const submitEnquiry = async (enquiry: Omit<LeadEnquiry, 'id' | 'createdAt' | 'status'>) => {
-    const enquiryId = `ENQ-${Date.now()}`;
+  // Submit Lead Enquiry
+  const submitEnquiry = async (enquiryData: Omit<LeadEnquiry, 'id' | 'createdAt' | 'status'>) => {
+    const enquiryId = `enq-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const newDoc: LeadEnquiry = {
-      ...enquiry,
+      ...enquiryData,
       id: enquiryId,
       status: 'NEW',
       createdAt: new Date().toISOString()
@@ -635,16 +752,17 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     try {
       const cleanDoc = sanitizeForFirestore(newDoc);
       await setDoc(doc(db, 'enquiries', enquiryId), cleanDoc);
-    } catch (err) {
-      console.warn('Enquiry fallback:', err);
+    } catch (err: any) {
+      console.warn('Enquiry fallback:', err?.message || err);
     }
     setEnquiries(prev => [newDoc, ...prev]);
   };
 
-  const submitReview = async (review: Omit<Review, 'id' | 'createdAt' | 'status'>) => {
-    const reviewId = `REV-${Date.now()}`;
+  // Submit Review
+  const submitReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'status'>) => {
+    const reviewId = `rev-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const newReview: Review = {
-      ...review,
+      ...reviewData,
       id: reviewId,
       status: 'APPROVED',
       createdAt: new Date().toISOString()
@@ -652,26 +770,25 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     try {
       const cleanRev = sanitizeForFirestore(newReview);
       await setDoc(doc(db, 'reviews', reviewId), cleanRev);
-    } catch (err) {
-      console.warn('Review save fallback:', err);
+    } catch (err: any) {
+      console.warn('Review save fallback:', err?.message || err);
     }
     setReviews(prev => [newReview, ...prev]);
   };
 
-  // Admin CMS & CRUD Functions (Persistent Real-Time Sync)
+  // Admin: Save product
   const saveProduct = async (product: Product) => {
     const prodToSave = {
       ...product,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      createdAt: product.createdAt || new Date().toISOString()
     };
 
-    // 1. Optimistic local state update
+    // 1. Optimistic Local State Update
     setProducts(prev => {
-      const idx = prev.findIndex(p => p.id === product.id);
-      if (idx > -1) {
-        const copy = [...prev];
-        copy[idx] = prodToSave;
-        return copy;
+      const exists = prev.some(p => p.id === prodToSave.id);
+      if (exists) {
+        return prev.map(p => p.id === prodToSave.id ? prodToSave : p);
       }
       return [prodToSave, ...prev];
     });
@@ -686,8 +803,9 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Delete product
   const deleteProduct = async (id: string) => {
-    // 1. Optimistic local state update
+    // 1. Optimistic Local Delete
     setProducts(prev => prev.filter(p => p.id !== id));
 
     // 2. Persistent Firestore Delete
@@ -698,14 +816,12 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
-  const saveCategory = async (cat: Category) => {
+  // Admin: Save Category
+  const saveCategory = async (category: Category) => {
+    const cat = { ...category, id: category.id || `cat-${Date.now()}` };
     setCategories(prev => {
-      const idx = prev.findIndex(c => c.id === cat.id);
-      if (idx > -1) {
-        const copy = [...prev];
-        copy[idx] = cat;
-        return copy;
-      }
+      const exists = prev.some(c => c.id === cat.id);
+      if (exists) return prev.map(c => c.id === cat.id ? cat : c);
       return [...prev, cat];
     });
 
@@ -718,6 +834,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Delete Category
   const deleteCategory = async (id: string) => {
     setCategories(prev => prev.filter(c => c.id !== id));
     try {
@@ -727,10 +844,11 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Update order
   const updateOrderStatus = async (id: string, status: Order['status'], courier?: string, trackingNum?: string) => {
     const updates: Partial<Order> = { status, updatedAt: new Date().toISOString() };
-    if (courier !== undefined) updates.trackingCourier = courier;
-    if (trackingNum !== undefined) updates.trackingNumber = trackingNum;
+    if (courier) updates.trackingCourier = courier;
+    if (trackingNum) updates.trackingNumber = trackingNum;
 
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
 
@@ -743,6 +861,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Delete Order
   const deleteOrder = async (id: string) => {
     setOrders(prev => prev.filter(o => o.id !== id));
     try {
@@ -752,6 +871,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Update Enquiry Status
   const updateEnquiryStatus = async (id: string, status: LeadEnquiry['status']) => {
     setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status } : e));
     try {
@@ -771,6 +891,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Update Review Status
   const updateReviewStatus = async (id: string, status: Review['status']) => {
     setReviews(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     try {
@@ -790,17 +911,14 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Save FAQ
   const saveFAQ = async (faq: FAQ) => {
     const faqId = faq.id || `faq-${Date.now()}`;
     const cleanFaq = { ...faq, id: faqId };
 
     setFaqs(prev => {
-      const idx = prev.findIndex(f => f.id === faqId);
-      if (idx > -1) {
-        const copy = [...prev];
-        copy[idx] = cleanFaq;
-        return copy;
-      }
+      const exists = prev.some(f => f.id === faqId);
+      if (exists) return prev.map(f => f.id === faqId ? cleanFaq : f);
       return [...prev, cleanFaq];
     });
 
@@ -821,6 +939,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Save Homepage CMS
   const saveHomepageContent = async (content: HomepageContent) => {
     setHomepageContent(content);
     try {
@@ -832,6 +951,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Save Store Settings
   const saveStoreSettings = async (settings: StoreSettings) => {
     setStoreSettings(settings);
     try {
@@ -843,6 +963,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
+  // Admin: Save CMS Page
   const saveCMSPage = async (page: CMSPage) => {
     setCmsPages(prev => ({ ...prev, [page.slug]: page }));
     try {
@@ -854,7 +975,6 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     }
   };
 
-  // 1-Click Seed Data to Firestore
   const seedInitialDataToFirestore = async () => {
     try {
       // 1. Seed store settings & Homepage CMS
@@ -904,7 +1024,10 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
         homepageContent,
         storeSettings,
         cmsPages,
+        whatsappClicks,
+        whatsappAnalytics,
         isLoading,
+
         cartItems,
         addToCart,
         removeFromCart,
@@ -914,15 +1037,21 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
         cartCount,
         isCartOpen,
         setIsCartOpen,
+
         searchQuery,
         setSearchQuery,
         isSearchOpen,
         setIsSearchOpen,
+
         generateProductWhatsAppUrl,
         generateCartWhatsAppUrl,
         createWhatsAppOrder,
+        trackWhatsAppClick,
+        trackAndOpenWhatsApp,
+
         submitEnquiry,
         submitReview,
+
         saveProduct,
         deleteProduct,
         saveCategory,

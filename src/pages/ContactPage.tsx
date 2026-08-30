@@ -3,7 +3,7 @@ import { Phone, Mail, MapPin, MessageSquare, CheckCircle, ArrowRight, Clock } fr
 import { useStore } from '../context/StoreContext';
 
 export const ContactPage: React.FC = () => {
-  const { storeSettings, submitEnquiry, cmsPages } = useStore();
+  const { storeSettings, submitEnquiry, cmsPages, trackAndOpenWhatsApp } = useStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
@@ -49,7 +49,8 @@ export const ContactPage: React.FC = () => {
   const handleDirectWhatsApp = () => {
     const num = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
     const text = encodeURIComponent('Hi Hydron! I have an enquiry regarding bottle specifications, corporate gifting, or placing an order.');
-    window.open(`https://wa.me/${num}?text=${text}`, '_blank', 'noopener,noreferrer');
+    const waUrl = `https://wa.me/${num}?text=${text}`;
+    trackAndOpenWhatsApp(waUrl, 'CONTACT_PAGE_DESK');
   };
 
   return (

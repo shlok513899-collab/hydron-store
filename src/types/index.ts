@@ -218,3 +218,25 @@ export interface StoreSettings {
   facebookUrl?: string;
   linkedinUrl?: string;
 }
+
+export interface WhatsAppClickEvent {
+  id: string;
+  source: string;
+  productId?: string;
+  productName?: string;
+  orderNumber?: string;
+  customerName?: string;
+  customerMobile?: string;
+  timestamp: string;
+  pageUrl?: string;
+}
+
+export interface WhatsAppAnalytics {
+  totalClicks: number;
+  productClicks: number;
+  cartClicks: number;
+  floatingClicks: number;
+  contactClicks: number;
+  lastClickTimestamp?: string;
+}
+

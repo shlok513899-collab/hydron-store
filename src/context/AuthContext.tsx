@@ -206,12 +206,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUserProfile = async (data: Partial<CustomerProfile>) => {
     if (!currentUser) throw new Error('User not logged in');
+    try {
+      if (data.name) {
+        await updateProfile(currentUser, { displayName: data.name });
+      }
+    } catch (e) {
+      console.warn('Firebase Auth display name update note:', e);
+    }
     const userRef = doc(db, 'users', currentUser.uid);
-    await updateDoc(userRef, {
+    const cleanData = {
       ...data,
       updatedAt: new Date().toISOString()
-    });
-    setUserProfile(prev => prev ? { ...prev, ...data } : null);
+    };
+    await setDoc(userRef, cleanData, { merge: true });
+    setUserProfile(prev => prev ? { ...prev, ...data } : ({
+      uid: currentUser.uid,
+      name: data.name || currentUser.displayName || 'Hydron Customer',
+      email: currentUser.email || '',
+      mobile: data.mobile || '',
+      role: 'customer',
+      createdAt: new Date().toISOString(),
+      ...data
+    } as CustomerProfile));
   };
 
   return (

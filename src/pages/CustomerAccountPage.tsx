@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User, 
   Package, 
@@ -26,17 +26,39 @@ export const CustomerAccountPage: React.FC<CustomerAccountPageProps> = ({
   onNavigateToAdmin,
   onNavigateToTrack,
 }) => {
-  const { currentUser, userProfile, isAdmin, logout, updateUserAddress } = useAuth();
-  const { orders, storeSettings, enquiries } = useStore();
+  const { currentUser, userProfile, isAdmin, logout, updateUserProfile } = useAuth();
+  const { orders, storeSettings, enquiries, trackAndOpenWhatsApp } = useStore();
 
   const [activeTab, setActiveTab] = useState<'ORDERS' | 'PROFILE' | 'ADDRESS' | 'ENQUIRIES'>('ORDERS');
   
+  // Profile edit form state
+  const [profileName, setProfileName] = useState(userProfile?.name || currentUser?.displayName || '');
+  const [profileMobile, setProfileMobile] = useState(userProfile?.mobile || '');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
   // Address form
   const [street, setStreet] = useState(userProfile?.address?.street || '');
   const [city, setCity] = useState(userProfile?.address?.city || '');
   const [state, setState] = useState(userProfile?.address?.state || '');
   const [pincode, setPincode] = useState(userProfile?.address?.pincode || '');
   const [addressSaved, setAddressSaved] = useState(false);
+  const [addressSaving, setAddressSaving] = useState(false);
+
+  // Sync state if userProfile changes
+  useEffect(() => {
+    if (userProfile) {
+      if (userProfile.name) setProfileName(userProfile.name);
+      if (userProfile.mobile) setProfileMobile(userProfile.mobile);
+      if (userProfile.address) {
+        setStreet(userProfile.address.street || '');
+        setCity(userProfile.address.city || '');
+        setState(userProfile.address.state || '');
+        setPincode(userProfile.address.pincode || '');
+      }
+    }
+  }, [userProfile]);
 
   if (!currentUser) {
     return (
@@ -52,6 +74,7 @@ export const CustomerAccountPage: React.FC<CustomerAccountPageProps> = ({
   // Filter orders by current user's email or mobile
   const userOrders = orders.filter(
     (o) =>
+      o.userId === currentUser.uid ||
       o.customerId === currentUser.uid ||
       o.customerEmail?.toLowerCase() === currentUser.email?.toLowerCase() ||
       (userProfile?.mobile && o.customerMobile?.replace(/[^0-9]/g, '') === userProfile.mobile.replace(/[^0-9]/g, ''))
@@ -61,23 +84,55 @@ export const CustomerAccountPage: React.FC<CustomerAccountPageProps> = ({
     (e) => e.email?.toLowerCase() === currentUser.email?.toLowerCase()
   );
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileError(null);
+    try {
+      await updateUserProfile({
+        name: profileName.trim(),
+        mobile: profileMobile.trim(),
+      });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+    } catch (err: any) {
+      setProfileError(err?.message || 'Failed to update profile in database');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateUserAddress({
-      street: street.trim(),
-      city: city.trim(),
-      state: state.trim(),
-      pincode: pincode.trim(),
-      country: 'India',
-    });
-    setAddressSaved(true);
-    setTimeout(() => setAddressSaved(false), 2000);
+    setAddressSaving(true);
+    try {
+      await updateUserProfile({
+        address: {
+          street: street.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          pincode: pincode.trim(),
+          country: 'India',
+        }
+      });
+      setAddressSaved(true);
+      setTimeout(() => setAddressSaved(false), 2500);
+    } catch (err) {
+      console.warn('Address update error:', err);
+    } finally {
+      setAddressSaving(false);
+    }
   };
 
   const handleWhatsAppOrderInquiry = (orderNumber: string) => {
     const num = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
-    const text = encodeURIComponent(`Hi Hydron Team! Inquiring about my Order #${orderNumber}.`);
-    window.open(`https://wa.me/${num}?text=${text}`, '_blank', 'noopener,noreferrer');
+    const text = encodeURIComponent(`Hi Hydron Concierge! Inquiring about my Order #${orderNumber}.`);
+    const waUrl = `https://wa.me/${num}?text=${text}`;
+    trackAndOpenWhatsApp(waUrl, 'ACCOUNT_ORDER_INQUIRY', {
+      orderNumber,
+      customerName: userProfile?.name || currentUser.displayName || undefined,
+      customerMobile: userProfile?.mobile || undefined
+    });
   };
 
   return (
@@ -258,28 +313,87 @@ export const CustomerAccountPage: React.FC<CustomerAccountPageProps> = ({
             {/* Profile Tab */}
             {activeTab === 'PROFILE' && (
               <div className="space-y-6">
-                <h3 className="text-base font-bold uppercase tracking-tight text-black font-heading border-b border-zinc-200 pb-4">
-                  HYDRON ACCOUNT PROFILE
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                  <div className="p-4 bg-zinc-50 border border-zinc-200 space-y-1">
-                    <span className="text-zinc-400 uppercase text-[10px]">Full Name</span>
-                    <p className="text-black font-bold font-sans text-sm">{userProfile?.name || 'N/A'}</p>
-                  </div>
-                  <div className="p-4 bg-zinc-50 border border-zinc-200 space-y-1">
-                    <span className="text-zinc-400 uppercase text-[10px]">Email Address</span>
-                    <p className="text-black font-bold">{currentUser.email}</p>
-                  </div>
-                  <div className="p-4 bg-zinc-50 border border-zinc-200 space-y-1">
-                    <span className="text-zinc-400 uppercase text-[10px]">Mobile (WhatsApp)</span>
-                    <p className="text-black font-bold">{userProfile?.mobile || 'Not provided'}</p>
-                  </div>
-                  <div className="p-4 bg-zinc-50 border border-zinc-200 space-y-1">
-                    <span className="text-zinc-400 uppercase text-[10px]">Account Tier</span>
-                    <p className="text-black font-bold uppercase">Hydron Verified Patron</p>
-                  </div>
+                <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
+                  <h3 className="text-base font-bold uppercase tracking-tight text-black font-heading">
+                    HYDRON ACCOUNT PROFILE & PREFERENCES
+                  </h3>
+                  <span className="text-[11px] font-mono text-zinc-400">DATABASE SYNCED</span>
                 </div>
+
+                {profileError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs">
+                    {profileError}
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveProfile} className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        Full Name / Display Name
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        placeholder="Your Full Name"
+                        className="w-full text-xs bg-zinc-50 border border-zinc-300 p-3 focus:outline-hidden focus:border-black font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        Email Address (Read Only)
+                      </label>
+                      <input
+                        type="email"
+                        disabled
+                        value={currentUser.email || ''}
+                        className="w-full text-xs bg-zinc-100 border border-zinc-200 p-3 text-zinc-500 font-mono cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        WhatsApp Contact Mobile
+                      </label>
+                      <input
+                        type="tel"
+                        value={profileMobile}
+                        onChange={(e) => setProfileMobile(e.target.value)}
+                        placeholder="+91 98765 43210"
+                        className="w-full text-xs bg-zinc-50 border border-zinc-300 p-3 focus:outline-hidden focus:border-black font-mono"
+                      />
+                      <span className="text-[10px] text-zinc-400 font-mono mt-1 block">Used to auto-fill your WhatsApp checkout orders.</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                        Account Status & Tier
+                      </label>
+                      <div className="p-3 bg-zinc-50 border border-zinc-200 text-xs font-mono text-black font-bold flex items-center justify-between">
+                        <span>Hydron Verified Patron</span>
+                        <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold">Active</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center gap-4">
+                    <button
+                      type="submit"
+                      disabled={profileSaving}
+                      className="bg-black text-white text-xs font-bold uppercase tracking-wider px-6 py-3 hover:bg-zinc-800 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {profileSaving ? 'SAVING TO DATABASE...' : 'SAVE PROFILE CHANGES'}
+                    </button>
+                    {profileSaved && (
+                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+                        <Check className="w-4 h-4" /> Profile Successfully Saved to Database
+                      </span>
+                    )}
+                  </div>
+                </form>
               </div>
             )}
 

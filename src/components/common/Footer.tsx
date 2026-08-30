@@ -21,9 +21,16 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
-  const { storeSettings, submitEnquiry } = useStore();
+  const { storeSettings, submitEnquiry, trackAndOpenWhatsApp } = useStore();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+
+  const handleWhatsAppClick = () => {
+    const num = storeSettings.whatsappNumber.replace(/[^0-9]/g, '') || '919876543210';
+    const text = encodeURIComponent('Hi Hydron! Inquiring from the store website footer.');
+    const waUrl = `https://wa.me/${num}?text=${text}`;
+    trackAndOpenWhatsApp(waUrl, 'FOOTER_CONCIERGE_LINK');
+  };
 
   const handleNewsletter = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,10 +73,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           </div>
 
           <div className="flex items-center justify-center md:justify-start gap-3">
-            <RotateCcw className="w-6 h-6 text-white shrink-0" />
+            <CheckCircle2 className="w-6 h-6 text-white shrink-0" />
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-white">30-DAY EASY EXCHANGES</p>
-              <p className="text-[11px] text-zinc-400">Hassle-free replacement for any transit damage</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-white">100% QUALITY INSPECTED</p>
+              <p className="text-[11px] text-zinc-400">Every vessel vacuum tested before dispatch</p>
             </div>
           </div>
         </div>
@@ -163,7 +170,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               </li>
               <li>
                 <button onClick={() => onNavigate('/returns')} className="hover:text-white transition-colors">
-                  Returns & Exchanges
+                  No-Return & Order Policy
                 </button>
               </li>
               <li>
@@ -189,10 +196,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </p>
 
             <div className="text-xs text-zinc-300 space-y-1.5 font-mono">
-              <p className="flex items-center gap-2">
+              <button
+                onClick={handleWhatsAppClick}
+                className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer text-left"
+                title="Chat with WhatsApp Concierge"
+              >
                 <Phone className="w-3.5 h-3.5 text-zinc-400" />
                 <span>WA: +{storeSettings.whatsappNumber}</span>
-              </p>
+              </button>
               <p className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-zinc-400" />
                 <span>{storeSettings.supportEmail}</span>

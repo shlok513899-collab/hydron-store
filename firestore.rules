@@ -65,5 +65,14 @@ service cloud.firestore {
     match /store_settings/{settingId} {
       allow read, write: if true;
     }
+
+    // WhatsApp Clicks tracking & Analytics
+    match /whatsapp_clicks/{clickId} {
+      allow read, write: if true;
+    }
+
+    match /analytics/{docId} {
+      allow read, write: if true;
+    }
   }
 }

@@ -1,20 +1,23 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import appletConfig from '../../firebase-applet-config.json';
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyBz4Ki-CKXR1_sI2Wd0voWzemYzfaWQvUw",
-  authDomain: "hydron-store.firebaseapp.com",
-  projectId: "hydron-store",
-  storageBucket: "hydron-store.firebasestorage.app",
-  messagingSenderId: "532228359263",
-  appId: "1:532228359263:web:9a2b64cc20bcc7770087ea",
-  measurementId: "G-YRJSEBGHYL"
+  apiKey: appletConfig.apiKey,
+  authDomain: appletConfig.authDomain,
+  projectId: appletConfig.projectId,
+  storageBucket: appletConfig.storageBucket,
+  messagingSenderId: appletConfig.messagingSenderId,
+  appId: appletConfig.appId,
+  measurementId: appletConfig.measurementId || undefined
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = appletConfig.firestoreDatabaseId 
+  ? getFirestore(app, appletConfig.firestoreDatabaseId)
+  : getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export enum OperationType {

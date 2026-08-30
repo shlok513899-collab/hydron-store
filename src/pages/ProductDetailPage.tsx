@@ -32,7 +32,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   onNavigate,
   onSelectProduct,
 }) => {
-  const { products, storeSettings, addToCart, generateProductWhatsAppUrl, reviews } = useStore();
+  const { products, storeSettings, addToCart, generateProductWhatsAppUrl, trackAndOpenWhatsApp, reviews } = useStore();
 
   const product = products.find(p => p.slug === slug) || products[0];
 
@@ -64,7 +64,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
   const handleWhatsAppBuy = () => {
     const url = generateProductWhatsAppUrl(product, quantity, selectedColor, selectedCapacity);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    trackAndOpenWhatsApp(url, 'PRODUCT_BUY_NOW', {
+      productId: product.id,
+      productName: product.name,
+    });
   };
 
   const handleAddToCart = () => {
@@ -311,8 +314,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 <span>2-Year Warranty</span>
               </div>
               <div className="flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-black shrink-0" />
-                <span>7-Day Easy Returns</span>
+                <Award className="w-4 h-4 text-black shrink-0" />
+                <span>100% Quality Inspected</span>
               </div>
               <div className="flex items-center gap-2">
                 <Thermometer className="w-4 h-4 text-black shrink-0" />
@@ -330,7 +333,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               { key: 'SPECS', label: 'SPECIFICATIONS' },
               { key: 'FEATURES', label: 'KEY HIGHLIGHTS' },
               { key: 'CARE', label: 'CARE & USAGE' },
-              { key: 'WARRANTY', label: 'WARRANTY & RETURNS' },
+              { key: 'WARRANTY', label: 'WARRANTY & CRAFTSMANSHIP' },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -382,8 +385,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             {activeTab === 'WARRANTY' && (
               <div className="space-y-3 max-w-2xl text-xs sm:text-sm text-zinc-700 leading-relaxed">
                 <p>• Every Hydron vessel carries our signature <strong>2-Year Limited Craftsmanship Warranty</strong>.</p>
-                <p>• Covers vacuum insulation failure, defective flex handles, and manufacturing flaws.</p>
-                <p>• Direct WhatsApp warranty claims with door-to-door reverse pickup.</p>
+                <p>• Covers vacuum insulation failure, defective threading, and manufacturing flaws.</p>
+                <p>• <strong>Strict No-Return / No-RTO Policy:</strong> To ensure sterile, uncompromised food-grade hygiene for every customer, all drinkware sales are final with zero return or RTO acceptance.</p>
+                <p>• In the rare event of transit damage, share an uncut unboxing video within 24 hours via WhatsApp for an immediate factory replacement.</p>
               </div>
             )}
           </div>

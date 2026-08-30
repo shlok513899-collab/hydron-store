@@ -24,7 +24,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const { 
     storeSettings, 
     addToCart, 
-    generateProductWhatsAppUrl 
+    generateProductWhatsAppUrl,
+    trackAndOpenWhatsApp 
   } = useStore();
 
   const [selectedColor, setSelectedColor] = useState<ProductOptionColor>(
@@ -48,7 +49,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const handleWhatsAppBuy = (e: React.MouseEvent) => {
     e.stopPropagation();
     const url = generateProductWhatsAppUrl(product, 1, selectedColor, selectedCapacity);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    trackAndOpenWhatsApp(url, 'PRODUCT_CARD_BUY_NOW', {
+      productId: product.id,
+      productName: product.name,
+    });
   };
 
   const discountPercent = product.compareAtPrice && product.compareAtPrice > product.price 

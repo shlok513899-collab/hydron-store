@@ -30,7 +30,10 @@ import {
   Tag,
   Sparkles,
   Eye,
-  RefreshCw
+  RefreshCw,
+  MousePointerClick,
+  Share2,
+  Activity
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { useAuth } from '../../context/AuthContext';
@@ -64,6 +67,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
     homepageContent, 
     storeSettings,
     cmsPages = {},
+    whatsappClicks = [],
+    whatsappAnalytics = { totalClicks: 0, clicksBySource: {}, clicksByProduct: {}, lastClickAt: null },
     saveProduct, 
     deleteProduct, 
     saveCategory, 
@@ -83,7 +88,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
   const { currentUser, userProfile, isAdmin, logoutAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<
-    'OVERVIEW' | 'PRODUCTS' | 'CATEGORIES' | 'ORDERS' | 'PAGES_CMS' | 'HOMEPAGE' | 'REVIEWS' | 'FAQS' | 'ENQUIRIES' | 'SETTINGS'
+    'OVERVIEW' | 'PRODUCTS' | 'CATEGORIES' | 'ORDERS' | 'WHATSAPP_ANALYTICS' | 'PAGES_CMS' | 'HOMEPAGE' | 'REVIEWS' | 'FAQS' | 'ENQUIRIES' | 'SETTINGS'
   >('OVERVIEW');
 
   // Product Edit/Add State
@@ -329,6 +334,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
             { id: 'PRODUCTS', label: `Products (${products.length})`, icon: Package },
             { id: 'CATEGORIES', label: `Categories (${categories.length})`, icon: Layers },
             { id: 'ORDERS', label: `WhatsApp Orders (${orders.length})`, icon: ShoppingBag },
+            { id: 'WHATSAPP_ANALYTICS', label: `WhatsApp Clicks (${whatsappAnalytics.totalClicks || whatsappClicks.length || 0})`, icon: MousePointerClick },
             { id: 'PAGES_CMS', label: 'Page CMS & Content', icon: FileText },
             { id: 'HOMEPAGE', label: 'Homepage CMS', icon: Sliders },
             { id: 'REVIEWS', label: `Reviews (${reviews.length})`, icon: Star },
@@ -374,19 +380,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
               </div>
 
               {/* KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="p-5 bg-white border border-zinc-300 space-y-2">
                   <span className="text-[10px] font-mono uppercase text-zinc-400">Total Order Volume</span>
                   <p className="text-2xl font-black text-black font-heading">
                     {storeSettings.currencySymbol}{totalRevenue.toLocaleString('en-IN')}
                   </p>
-                  <p className="text-[11px] text-zinc-500">{orders.length} total WhatsApp orders placed</p>
+                  <p className="text-[11px] text-zinc-500">{orders.length} WhatsApp orders placed</p>
+                </div>
+
+                <div className="p-5 bg-white border border-zinc-300 space-y-2 cursor-pointer hover:border-black transition-colors" onClick={() => setActiveTab('WHATSAPP_ANALYTICS')}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase text-zinc-400">WhatsApp Clicks</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  </div>
+                  <p className="text-2xl font-black text-black font-heading">
+                    {whatsappAnalytics.totalClicks || whatsappClicks.length || 0}
+                  </p>
+                  <p className="text-[11px] text-emerald-700 font-medium font-mono">Live synced to database</p>
                 </div>
 
                 <div className="p-5 bg-white border border-zinc-300 space-y-2">
                   <span className="text-[10px] font-mono uppercase text-zinc-400">Pending Fulfillment</span>
                   <p className="text-2xl font-black text-black font-heading">{pendingOrders}</p>
-                  <p className="text-[11px] text-zinc-500">Awaiting dispatch inspection</p>
+                  <p className="text-[11px] text-zinc-500">Awaiting dispatch</p>
                 </div>
 
                 <div className="p-5 bg-white border border-zinc-300 space-y-2">
@@ -398,7 +415,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                 <div className="p-5 bg-white border border-zinc-300 space-y-2">
                   <span className="text-[10px] font-mono uppercase text-zinc-400">Customer Inquiries</span>
                   <p className="text-2xl font-black text-black font-heading">{enquiries.length}</p>
-                  <p className="text-[11px] text-zinc-500">Direct message leads logged</p>
+                  <p className="text-[11px] text-zinc-500">Direct message leads</p>
                 </div>
               </div>
 
@@ -1513,6 +1530,196 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
             </div>
           )}
 
+          {/* WHATSAPP ANALYTICS & CONVERSION LOGS TAB */}
+          {activeTab === 'WHATSAPP_ANALYTICS' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-black font-heading flex items-center gap-2.5">
+                    <MousePointerClick className="w-6 h-6 text-black" />
+                    <span>WHATSAPP CONVERSION & CLICK ANALYTICS</span>
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    Real-time telemetry tracking every WhatsApp button clicked, inquiring product, source button, and redirect timestamps synced to Firestore.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3 py-1.5 text-xs text-emerald-800 font-mono font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>LIVE DATABASE SYNC ACTIVE</span>
+                </div>
+              </div>
+
+              {/* Highlight Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 bg-white border border-zinc-300 space-y-1.5">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400">Total Redirects</span>
+                  <p className="text-3xl font-black text-black font-heading">
+                    {whatsappAnalytics.totalClicks || whatsappClicks.length || 0}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">Users tapped WhatsApp across website</p>
+                </div>
+
+                <div className="p-5 bg-white border border-zinc-300 space-y-1.5">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400">Top Origin Trigger</span>
+                  <p className="text-base font-bold text-black font-heading truncate">
+                    {Object.entries(whatsappAnalytics.clicksBySource || {}).sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))[0]?.[0] || 'Floating Concierge'}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    {Object.entries(whatsappAnalytics.clicksBySource || {}).sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))[0]?.[1] || 0} clicks from this location
+                  </p>
+                </div>
+
+                <div className="p-5 bg-white border border-zinc-300 space-y-1.5">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400">Top Inquired Product</span>
+                  <p className="text-base font-bold text-black font-heading truncate">
+                    {Object.entries(whatsappAnalytics.clicksByProduct || {}).sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))[0]?.[0] || 'General Inquiry'}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    {Object.entries(whatsappAnalytics.clicksByProduct || {}).sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))[0]?.[1] || 0} direct product leads
+                  </p>
+                </div>
+
+                <div className="p-5 bg-white border border-zinc-300 space-y-1.5">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400">Last Click Recorded</span>
+                  <p className="text-xs font-mono font-bold text-black truncate">
+                    {whatsappAnalytics.lastClickAt ? new Date(whatsappAnalytics.lastClickAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'No events yet'}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">
+                    {whatsappAnalytics.lastClickAt ? new Date(whatsappAnalytics.lastClickAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Awaiting user action'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Source Distribution & Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Clicks by Source */}
+                <div className="bg-white border border-zinc-300 p-5 space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-black font-heading flex items-center justify-between">
+                    <span>CLICKS BY TRIGGER SOURCE</span>
+                    <span className="text-[10px] text-zinc-400 font-mono">Location Breakdown</span>
+                  </h3>
+                  <div className="space-y-3">
+                    {Object.entries(whatsappAnalytics.clicksBySource || {}).length === 0 ? (
+                      <p className="text-xs text-zinc-400 py-4 text-center">No source telemetry logged yet.</p>
+                    ) : (
+                      Object.entries(whatsappAnalytics.clicksBySource || {})
+                        .sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))
+                        .map(([src, count]) => {
+                          const countNum = Number(count) || 0;
+                          const total = whatsappAnalytics.totalClicks || 1;
+                          const pct = Math.round((countNum / total) * 100);
+                          return (
+                            <div key={src} className="space-y-1">
+                              <div className="flex justify-between text-xs font-mono">
+                                <span className="text-zinc-800 font-bold">{src}</span>
+                                <span className="text-zinc-500">{countNum} clicks ({pct}%)</span>
+                              </div>
+                              <div className="w-full bg-zinc-100 h-2 overflow-hidden border border-zinc-200">
+                                <div className="bg-black h-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+
+                {/* Clicks by Product */}
+                <div className="bg-white border border-zinc-300 p-5 space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-black font-heading flex items-center justify-between">
+                    <span>CLICKS BY PRODUCT SKU</span>
+                    <span className="text-[10px] text-zinc-400 font-mono">Demand Heatmap</span>
+                  </h3>
+                  <div className="space-y-2">
+                    {Object.entries(whatsappAnalytics.clicksByProduct || {}).length === 0 ? (
+                      <p className="text-xs text-zinc-400 py-4 text-center">No product-specific clicks logged yet.</p>
+                    ) : (
+                      Object.entries(whatsappAnalytics.clicksByProduct || {})
+                        .sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))
+                        .map(([prodName, count]) => {
+                          const countNum = Number(count) || 0;
+                          return (
+                            <div key={prodName} className="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-200 text-xs">
+                              <span className="font-medium text-black font-sans truncate">{prodName}</span>
+                              <span className="px-2.5 py-0.5 bg-black text-white font-mono font-bold text-[11px] shrink-0">
+                                {countNum} lead{countNum > 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Realtime Clicks Stream Table */}
+              <div className="bg-white border border-zinc-300 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-black font-heading flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-600 animate-pulse" />
+                    <span>REAL-TIME WHATSAPP EVENT STREAM ({whatsappClicks.length} RECENT LOGS)</span>
+                  </h3>
+                  <span className="text-[11px] font-mono text-zinc-400">Stored in Firestore `whatsapp_clicks`</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs font-mono">
+                    <thead className="border-b border-zinc-200 text-zinc-400 uppercase text-[10px]">
+                      <tr>
+                        <th className="py-2.5 text-left">Timestamp</th>
+                        <th className="py-2.5 text-left">Trigger Source</th>
+                        <th className="py-2.5 text-left">Product / SKU</th>
+                        <th className="py-2.5 text-left">User / Customer</th>
+                        <th className="py-2.5 text-left">Device / Screen</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {whatsappClicks.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-zinc-400 font-sans text-xs">
+                            No WhatsApp clicks logged yet. When a visitor clicks any WhatsApp button or Buy Now button, the click event will appear here in real-time.
+                          </td>
+                        </tr>
+                      ) : (
+                        whatsappClicks.slice(0, 50).map((click) => (
+                          <tr key={click.id} className="hover:bg-zinc-50">
+                            <td className="py-3 text-zinc-600 whitespace-nowrap">
+                              {new Date(click.timestamp).toLocaleString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                              })}
+                            </td>
+                            <td className="py-3">
+                              <span className="px-2 py-0.5 bg-zinc-100 border border-zinc-300 text-zinc-800 font-bold text-[10px]">
+                                {click.source}
+                              </span>
+                            </td>
+                            <td className="py-3 font-sans text-black font-medium">
+                              {click.productName ? (
+                                <span className="font-semibold">{click.productName}</span>
+                              ) : (
+                                <span className="text-zinc-400 italic">General Site Concierge</span>
+                              )}
+                            </td>
+                            <td className="py-3 text-zinc-600">
+                              {click.userEmail || (click.userId ? `User: ${click.userId.slice(0, 8)}` : 'Guest Visitor')}
+                            </td>
+                            <td className="py-3 text-zinc-500 text-[11px]">
+                              {click.screenWidth ? `${click.screenWidth}px` : 'Web'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* PAGE CMS & ALL-PAGE CONTENT TAB */}
           {activeTab === 'PAGES_CMS' && (
             <div className="space-y-6">
@@ -1551,7 +1758,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                     { slug: 'shop', label: 'Shop Catalog (/shop)' },
                     { slug: 'collections', label: 'Collections (/collections)' },
                     { slug: 'shipping-policy', label: 'Shipping Policy (/shipping-policy)' },
-                    { slug: 'returns-exchange', label: 'Returns & Exchange (/returns-exchange)' },
+                    { slug: 'returns-exchange', label: 'No-Return & RTO Policy (/returns-exchange)' },
                     { slug: 'warranty-care', label: '2-Year Warranty (/warranty-care)' },
                     { slug: 'privacy-policy', label: 'Privacy Policy (/privacy-policy)' },
                     { slug: 'terms-of-service', label: 'Terms of Service (/terms-of-service)' },

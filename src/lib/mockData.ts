@@ -475,6 +475,11 @@ export const DEFAULT_CMS_PAGES: CMSPage[] = [
         answer: 'Our warranty covers loss of thermal insulation vacuum seal, defective caps, broken handles, or factory craftsmanship flaws. It does not cover normal cosmetic scratches or dents from drops.',
         category: 'Warranty & Care',
       },
+      {
+        question: 'What is your Return, Refund & RTO policy?',
+        answer: 'To guarantee strict food-grade sterile hygiene for every customer, Hydron enforces a strict No Return, No Refund, and No RTO (Return to Origin) policy once orders are dispatched. All sales are final. In the rare event of transit damage, an uncut unboxing video submitted within 24 hours of delivery qualifies for an immediate factory replacement unit.',
+        category: 'Warranty & Care',
+      },
     ],
   },
   {
@@ -535,22 +540,22 @@ export const DEFAULT_CMS_PAGES: CMSPage[] = [
   {
     id: 'page-returns',
     slug: 'returns-exchange',
-    title: 'Returns & 30-Day Exchange Policy',
-    eyebrow: 'GUARANTEED SATISFACTION',
-    subtitle: 'Hassle-free 30-day returns and immediate replacement support.',
+    title: 'No Return, Refund & RTO Policy',
+    eyebrow: 'HYGIENE & DISPATCH PROTOCOLS',
+    subtitle: 'To maintain pristine food-grade sterile hygiene, all Hydron drinkware sales are final with zero return/RTO acceptance.',
     lastUpdated: 'August 2026',
     content: `
-      <h2>30-Day Satisfaction Guarantee</h2>
-      <p>If you receive a product that is damaged during transit, defective, or incorrect, we provide an immediate no-questions-asked replacement or full refund within 30 days of delivery.</p>
+      <h2>1. Uncompromising Hygiene & Food Safety Mandate</h2>
+      <p>Due to the personal oral contact nature of thermal flasks and tumblers, Hydron does not accept returns, refunds, or exchanges for change of mind or personal preference once an order has been confirmed and dispatched. All sales are final.</p>
       
-      <h2>Return Eligibility Conditions</h2>
-      <ul>
-        <li>The product must be unused, unwashed, and in its original packaging with all protective tags attached.</li>
-        <li>Proof of purchase (Order ID or WhatsApp order confirmation) is required.</li>
-      </ul>
+      <h2>2. Zero RTO (Return to Origin) Acceptance</h2>
+      <p>To eliminate logistical waste and keep product prices competitive, customer cancellations upon arrival, doorstep refusals, or unauthorized return shipments marked as RTO are strictly non-refundable.</p>
       
-      <h2>How to Initiate a Return / Exchange</h2>
-      <p>Simply message our WhatsApp support concierge at <strong>+91 98765 43210</strong> or email <strong>care@hydronlife.com</strong> with your Order ID and photo of the issue. Our team will arrange a free reverse pickup from your doorstep within 48 hours.</p>
+      <h2>3. In-Transit Damage Replacement (Unboxing Video Required)</h2>
+      <p>If your package arrives visibly crushed, dented, or defective, notify our WhatsApp Concierge at <strong>+91 98765 43210</strong> within 24 hours of delivery with a continuous, uncut unboxing video showing the shipping label and the defect. Verified transit defects receive an immediate direct replacement at zero cost.</p>
+
+      <h2>4. 2-Year TempShield™ Craftsmanship Warranty</h2>
+      <p>Every bottle is covered by our 2-Year warranty against vacuum insulation breakdown and factory craftsmanship flaws.</p>
     `,
   },
   {
