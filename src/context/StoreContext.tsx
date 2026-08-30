@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { 
   collection, 
   doc, 
@@ -11,7 +11,7 @@ import {
   orderBy,
   onSnapshot 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { 
   CartItem, 
   Category, 
@@ -80,7 +80,9 @@ interface StoreContextType {
   saveCategory: (category: Category) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   updateOrderStatus: (id: string, status: Order['status'], courier?: string, trackingNum?: string) => Promise<void>;
+  deleteOrder: (id: string) => Promise<void>;
   updateEnquiryStatus: (id: string, status: LeadEnquiry['status']) => Promise<void>;
+  deleteEnquiry: (id: string) => Promise<void>;
   updateReviewStatus: (id: string, status: Review['status']) => Promise<void>;
   deleteReview: (id: string) => Promise<void>;
   saveFAQ: (faq: FAQ) => Promise<void>;
@@ -95,30 +97,86 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, isAdmin } = useAuth();
+  const hasSeededRef = useRef(false);
 
+  // Initialize from LocalStorage or Fallbacks for zero-flicker startup
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_products');
+      const saved = localStorage.getItem('hydron_products_v2');
       return saved ? JSON.parse(saved) : DEMO_PRODUCTS;
     } catch {
       return DEMO_PRODUCTS;
     }
   });
+
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_categories');
+      const saved = localStorage.getItem('hydron_categories_v2');
       return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
     } catch {
       return DEFAULT_CATEGORIES;
     }
   });
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [enquiries, setEnquiries] = useState<LeadEnquiry[]>([]);
-  const [reviews, setReviews] = useState<Review[]>(DEFAULT_REVIEWS);
-  const [faqs, setFaqs] = useState<FAQ[]>(DEFAULT_FAQS);
-  const [homepageContent, setHomepageContent] = useState<HomepageContent>(DEFAULT_HOMEPAGE_CONTENT);
-  const [storeSettings, setStoreSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const saved = localStorage.getItem('hydron_orders_v2');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [enquiries, setEnquiries] = useState<LeadEnquiry[]>(() => {
+    try {
+      const saved = localStorage.getItem('hydron_enquiries_v2');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    try {
+      const saved = localStorage.getItem('hydron_reviews_v2');
+      return saved ? JSON.parse(saved) : DEFAULT_REVIEWS;
+    } catch {
+      return DEFAULT_REVIEWS;
+    }
+  });
+
+  const [faqs, setFaqs] = useState<FAQ[]>(() => {
+    try {
+      const saved = localStorage.getItem('hydron_faqs_v2');
+      return saved ? JSON.parse(saved) : DEFAULT_FAQS;
+    } catch {
+      return DEFAULT_FAQS;
+    }
+  });
+
+  const [homepageContent, setHomepageContent] = useState<HomepageContent>(() => {
+    try {
+      const saved = localStorage.getItem('hydron_homepage_cms_v2');
+      return saved ? JSON.parse(saved) : DEFAULT_HOMEPAGE_CONTENT;
+    } catch {
+      return DEFAULT_HOMEPAGE_CONTENT;
+    }
+  });
+
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
+    try {
+      const saved = localStorage.getItem('hydron_settings_v2');
+      return saved ? JSON.parse(saved) : DEFAULT_STORE_SETTINGS;
+    } catch {
+      return DEFAULT_STORE_SETTINGS;
+    }
+  });
+
   const [cmsPages, setCmsPages] = useState<Record<string, CMSPage>>(() => {
+    try {
+      const saved = localStorage.getItem('hydron_cms_pages_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
     const map: Record<string, CMSPage> = {};
     DEFAULT_CMS_PAGES.forEach(p => { map[p.slug] = p; });
     return map;
@@ -129,7 +187,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Cart State with LocalStorage persistence
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('hydron_cart');
+      const saved = localStorage.getItem('hydron_cart_v2');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -139,132 +197,197 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Synchronize localStorage caches
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_cart', JSON.stringify(cartItems));
-    } catch (e) {
-      console.error('Failed to save cart to localStorage', e);
-    }
+      localStorage.setItem('hydron_cart_v2', JSON.stringify(cartItems));
+    } catch {}
   }, [cartItems]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_products', JSON.stringify(products));
-    } catch (e) {
-      console.error('Failed to save products to localStorage', e);
-    }
+      localStorage.setItem('hydron_products_v2', JSON.stringify(products));
+    } catch {}
   }, [products]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('hydron_categories', JSON.stringify(categories));
-    } catch (e) {
-      console.error('Failed to save categories to localStorage', e);
-    }
+      localStorage.setItem('hydron_categories_v2', JSON.stringify(categories));
+    } catch {}
   }, [categories]);
 
-  // Load / listen to Products
   useEffect(() => {
     try {
-      const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
+      localStorage.setItem('hydron_reviews_v2', JSON.stringify(reviews));
+    } catch {}
+  }, [reviews]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydron_faqs_v2', JSON.stringify(faqs));
+    } catch {}
+  }, [faqs]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydron_homepage_cms_v2', JSON.stringify(homepageContent));
+    } catch {}
+  }, [homepageContent]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydron_settings_v2', JSON.stringify(storeSettings));
+    } catch {}
+  }, [storeSettings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydron_cms_pages_v2', JSON.stringify(cmsPages));
+    } catch {}
+  }, [cmsPages]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydron_orders_v2', JSON.stringify(orders));
+    } catch {}
+  }, [orders]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hydron_enquiries_v2', JSON.stringify(enquiries));
+    } catch {}
+  }, [enquiries]);
+
+  // Seed default data if database is fresh
+  const autoSeedIfEmpty = async () => {
+    if (hasSeededRef.current) return;
+    try {
+      const prodSnap = await getDocs(collection(db, 'products'));
+      if (prodSnap.empty) {
+        hasSeededRef.current = true;
+        console.log('Seeding initial Hydron catalog to Firestore...');
+        await seedInitialDataToFirestore();
+      }
+    } catch (e) {
+      console.warn('Auto-seed check note:', e);
+    }
+  };
+
+  // 1. Load / listen to Products in Real Time
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
         if (!snapshot.empty) {
           const items: Product[] = [];
-          snapshot.forEach((doc) => {
-            items.push({ id: doc.id, ...doc.data() } as Product);
+          snapshot.forEach((d) => {
+            items.push({ id: d.id, ...d.data() } as Product);
           });
           setProducts(items);
+        } else {
+          // If empty in database, trigger auto-seed once
+          autoSeedIfEmpty();
         }
       }, (error) => {
-        console.warn('Firestore products listener fallback to local data:', error.message);
+        console.warn('Products real-time sync notice:', error.message);
       });
-      return () => unsubscribe();
-    } catch {
-      // Keep local state
+    } catch (err) {
+      console.warn('Products listener error:', err);
     }
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
-  // Load / listen to Categories
+  // 2. Load / listen to Categories in Real Time
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
     try {
-      const unsubscribe = onSnapshot(collection(db, 'categories'), (snapshot) => {
+      unsubscribe = onSnapshot(collection(db, 'categories'), (snapshot) => {
         if (!snapshot.empty) {
           const items: Category[] = [];
-          snapshot.forEach((doc) => {
-            items.push({ id: doc.id, ...doc.data() } as Category);
+          snapshot.forEach((d) => {
+            items.push({ id: d.id, ...d.data() } as Category);
           });
           setCategories(items.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
         }
       }, (error) => {
-        console.warn('Firestore categories listener fallback to local data:', error.message);
+        console.warn('Categories sync notice:', error.message);
       });
-      return () => unsubscribe();
-    } catch {
-      // Keep local state
+    } catch (err) {
+      console.warn('Categories listener error:', err);
     }
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
-  // Load / listen to Reviews
+  // 3. Load / listen to Reviews in Real Time
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
     try {
-      const unsubscribe = onSnapshot(collection(db, 'reviews'), (snapshot) => {
+      unsubscribe = onSnapshot(collection(db, 'reviews'), (snapshot) => {
         if (!snapshot.empty) {
           const items: Review[] = [];
-          snapshot.forEach((doc) => {
-            items.push({ id: doc.id, ...doc.data() } as Review);
+          snapshot.forEach((d) => {
+            items.push({ id: d.id, ...d.data() } as Review);
           });
-          setReviews(items);
-        } else {
-          setReviews(DEFAULT_REVIEWS);
+          setReviews(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         }
       }, (error) => {
-        console.warn('Firestore reviews listener fallback:', error.message);
-        setReviews(DEFAULT_REVIEWS);
+        console.warn('Reviews sync notice:', error.message);
       });
-      return () => unsubscribe();
-    } catch {
-      setReviews(DEFAULT_REVIEWS);
+    } catch (err) {
+      console.warn('Reviews listener error:', err);
     }
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
-  // Load / listen to FAQs
+  // 4. Load / listen to FAQs in Real Time
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
     try {
-      const unsubscribe = onSnapshot(collection(db, 'faqs'), (snapshot) => {
+      unsubscribe = onSnapshot(collection(db, 'faqs'), (snapshot) => {
         if (!snapshot.empty) {
           const items: FAQ[] = [];
-          snapshot.forEach((doc) => {
-            items.push({ id: doc.id, ...doc.data() } as FAQ);
+          snapshot.forEach((d) => {
+            items.push({ id: d.id, ...d.data() } as FAQ);
           });
-          setFaqs(items);
-        } else {
-          setFaqs(DEFAULT_FAQS);
+          setFaqs(items.sort((a, b) => (a.order || 0) - (b.order || 0)));
         }
       }, (error) => {
-        console.warn('Firestore faqs listener fallback:', error.message);
-        setFaqs(DEFAULT_FAQS);
+        console.warn('FAQs sync notice:', error.message);
       });
-      return () => unsubscribe();
-    } catch {
-      setFaqs(DEFAULT_FAQS);
+    } catch (err) {
+      console.warn('FAQs listener error:', err);
     }
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
-  // Load Store Settings and Homepage CMS
+  // 5. Load / listen to Store Settings, Homepage CMS & Pages in Real Time
   useEffect(() => {
+    let unsubSettings: (() => void) | undefined;
+    let unsubCMS: (() => void) | undefined;
+    let unsubPages: (() => void) | undefined;
+
     try {
-      const unsubSettings = onSnapshot(doc(db, 'store_settings', 'general'), (snap) => {
+      unsubSettings = onSnapshot(doc(db, 'store_settings', 'general'), (snap) => {
         if (snap.exists()) {
           setStoreSettings({ ...DEFAULT_STORE_SETTINGS, ...snap.data() } as StoreSettings);
         }
-      }, () => {});
+      }, (err) => console.warn('Settings sync:', err.message));
 
-      const unsubCMS = onSnapshot(doc(db, 'store_settings', 'homepage_cms'), (snap) => {
+      unsubCMS = onSnapshot(doc(db, 'store_settings', 'homepage_cms'), (snap) => {
         if (snap.exists()) {
           setHomepageContent({ ...DEFAULT_HOMEPAGE_CONTENT, ...snap.data() } as HomepageContent);
         }
-      }, () => {});
+      }, (err) => console.warn('Homepage CMS sync:', err.message));
 
-      const unsubPages = onSnapshot(collection(db, 'cms_pages'), (snap) => {
+      unsubPages = onSnapshot(collection(db, 'cms_pages'), (snap) => {
         if (!snap.empty) {
           const pagesMap: Record<string, CMSPage> = {};
           DEFAULT_CMS_PAGES.forEach(p => { pagesMap[p.slug] = p; });
@@ -274,71 +397,65 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
           setCmsPages(pagesMap);
         }
-      }, () => {});
+      }, (err) => console.warn('CMS Pages sync:', err.message));
 
       setIsLoading(false);
-      return () => {
-        unsubSettings();
-        unsubCMS();
-        unsubPages();
-      };
-    } catch {
+    } catch (err) {
       setIsLoading(false);
     }
+
+    return () => {
+      if (unsubSettings) unsubSettings();
+      if (unsubCMS) unsubCMS();
+      if (unsubPages) unsubPages();
+    };
   }, []);
 
-  // Load Orders (for Admin or Authenticated User)
+  // 6. Load / listen to Orders in Real Time
   useEffect(() => {
-    if (!currentUser && !isAdmin) {
-      setOrders([]);
-      return;
-    }
-
+    let unsubscribe: (() => void) | undefined;
     try {
       const ordersCol = collection(db, 'orders');
-      const q = isAdmin 
-        ? query(ordersCol, orderBy('createdAt', 'desc'))
-        : query(ordersCol, where('userId', '==', currentUser?.uid || ''));
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      unsubscribe = onSnapshot(ordersCol, (snapshot) => {
         const items: Order[] = [];
-        snapshot.forEach((doc) => {
-          items.push({ id: doc.id, ...doc.data() } as Order);
+        snapshot.forEach((d) => {
+          items.push({ id: d.id, ...d.data() } as Order);
         });
-        setOrders(items);
+        const sorted = items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setOrders(sorted);
       }, (err) => {
-        console.warn('Orders query permission or offline:', err.message);
+        console.warn('Orders sync notice:', err.message);
       });
-
-      return () => unsubscribe();
     } catch (e) {
-      console.warn('Orders fetching error:', e);
+      console.warn('Orders listener setup notice:', e);
     }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [currentUser, isAdmin]);
 
-  // Load Enquiries (Admin only)
+  // 7. Load / listen to Enquiries in Real Time
   useEffect(() => {
-    if (!isAdmin) {
-      setEnquiries([]);
-      return;
-    }
-
+    let unsubscribe: (() => void) | undefined;
     try {
-      const unsubscribe = onSnapshot(collection(db, 'enquiries'), (snapshot) => {
+      unsubscribe = onSnapshot(collection(db, 'enquiries'), (snapshot) => {
         const items: LeadEnquiry[] = [];
-        snapshot.forEach((doc) => {
-          items.push({ id: doc.id, ...doc.data() } as LeadEnquiry);
+        snapshot.forEach((d) => {
+          items.push({ id: d.id, ...d.data() } as LeadEnquiry);
         });
         setEnquiries(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       }, (err) => {
-        console.warn('Enquiries fetching error:', err.message);
+        console.warn('Enquiries sync notice:', err.message);
       });
-
-      return () => unsubscribe();
     } catch (e) {
-      console.warn('Enquiries listener error:', e);
+      console.warn('Enquiries listener setup notice:', e);
     }
-  }, [isAdmin]);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   // Cart operations
   const addToCart = (
@@ -487,12 +604,14 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
       createdAt: new Date().toISOString(),
     };
 
-    // Save in Firestore orders collection
+    // Save in Firestore orders collection & optimistic update
     try {
       await setDoc(doc(db, 'orders', orderNumber), newOrder);
     } catch (err) {
-      console.warn('Could not write order to Firestore, will still open WhatsApp:', err);
+      console.warn('Order saved to local state:', err);
     }
+
+    setOrders(prev => [newOrder, ...prev]);
 
     // Return the WhatsApp URL
     const fullAddress = `${newOrder.shippingAddress.street}, ${newOrder.shippingAddress.city}, ${newOrder.shippingAddress.state} - ${newOrder.shippingAddress.pincode}`;
@@ -514,8 +633,9 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     try {
       await setDoc(doc(db, 'enquiries', enquiryId), newDoc);
     } catch (err) {
-      console.warn('Enquiry logged locally or Firestore offline', err);
+      console.warn('Enquiry fallback:', err);
     }
+    setEnquiries(prev => [newDoc, ...prev]);
   };
 
   const submitReview = async (review: Omit<Review, 'id' | 'createdAt' | 'status'>) => {
@@ -523,55 +643,57 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     const newReview: Review = {
       ...review,
       id: reviewId,
-      status: 'APPROVED', // auto approve for immediate feedback or admin can moderate
+      status: 'APPROVED',
       createdAt: new Date().toISOString()
     };
     try {
       await setDoc(doc(db, 'reviews', reviewId), newReview);
-      setReviews(prev => [newReview, ...prev]);
     } catch (err) {
-      setReviews(prev => [newReview, ...prev]);
+      console.warn('Review save fallback:', err);
     }
+    setReviews(prev => [newReview, ...prev]);
   };
 
-  // Admin CMS Functions
+  // Admin CMS & CRUD Functions (Persistent Real-Time Sync)
   const saveProduct = async (product: Product) => {
-    try {
-      const prodRef = doc(db, 'products', product.id);
-      await setDoc(prodRef, {
-        ...product,
-        updatedAt: new Date().toISOString()
-      });
-    } catch (e) {
-      console.warn('Error saving product to Firestore:', e);
-    }
+    const prodToSave = {
+      ...product,
+      updatedAt: new Date().toISOString()
+    };
+
+    // 1. Optimistic local state update
     setProducts(prev => {
       const idx = prev.findIndex(p => p.id === product.id);
       if (idx > -1) {
         const copy = [...prev];
-        copy[idx] = product;
+        copy[idx] = prodToSave;
         return copy;
       }
-      return [product, ...prev];
+      return [prodToSave, ...prev];
     });
+
+    // 2. Persistent Firestore Write
+    try {
+      const prodRef = doc(db, 'products', product.id);
+      await setDoc(prodRef, prodToSave, { merge: true });
+    } catch (e) {
+      console.error('Error saving product to Firestore:', e);
+    }
   };
 
   const deleteProduct = async (id: string) => {
+    // 1. Optimistic local state update
+    setProducts(prev => prev.filter(p => p.id !== id));
+
+    // 2. Persistent Firestore Delete
     try {
       await deleteDoc(doc(db, 'products', id));
     } catch (e) {
-      console.warn('Error deleting from Firestore:', e);
+      console.error('Error deleting product from Firestore:', e);
     }
-    setProducts(prev => prev.filter(p => p.id !== id));
   };
 
   const saveCategory = async (cat: Category) => {
-    try {
-      const catRef = doc(db, 'categories', cat.id);
-      await setDoc(catRef, cat);
-    } catch (e) {
-      console.warn('Error saving category to Firestore:', e);
-    }
     setCategories(prev => {
       const idx = prev.findIndex(c => c.id === cat.id);
       if (idx > -1) {
@@ -581,68 +703,90 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
       }
       return [...prev, cat];
     });
+
+    try {
+      const catRef = doc(db, 'categories', cat.id);
+      await setDoc(catRef, cat, { merge: true });
+    } catch (e) {
+      console.error('Error saving category to Firestore:', e);
+    }
   };
 
   const deleteCategory = async (id: string) => {
+    setCategories(prev => prev.filter(c => c.id !== id));
     try {
       await deleteDoc(doc(db, 'categories', id));
     } catch (e) {
-      console.warn('Error deleting category from Firestore:', e);
+      console.error('Error deleting category from Firestore:', e);
     }
-    setCategories(prev => prev.filter(c => c.id !== id));
   };
 
   const updateOrderStatus = async (id: string, status: Order['status'], courier?: string, trackingNum?: string) => {
-    const orderRef = doc(db, 'orders', id);
     const updates: Partial<Order> = { status, updatedAt: new Date().toISOString() };
-    if (courier) updates.trackingCourier = courier;
-    if (trackingNum) updates.trackingNumber = trackingNum;
+    if (courier !== undefined) updates.trackingCourier = courier;
+    if (trackingNum !== undefined) updates.trackingNumber = trackingNum;
+
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
 
     try {
+      const orderRef = doc(db, 'orders', id);
       await updateDoc(orderRef, updates);
     } catch (e) {
-      console.warn('Error updating order:', e);
+      console.error('Error updating order:', e);
     }
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
+  };
+
+  const deleteOrder = async (id: string) => {
+    setOrders(prev => prev.filter(o => o.id !== id));
+    try {
+      await deleteDoc(doc(db, 'orders', id));
+    } catch (e) {
+      console.error('Error deleting order from Firestore:', e);
+    }
   };
 
   const updateEnquiryStatus = async (id: string, status: LeadEnquiry['status']) => {
-    const enqRef = doc(db, 'enquiries', id);
+    setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status } : e));
     try {
+      const enqRef = doc(db, 'enquiries', id);
       await updateDoc(enqRef, { status });
     } catch (e) {
-      console.warn('Error updating enquiry:', e);
+      console.error('Error updating enquiry:', e);
     }
-    setEnquiries(prev => prev.map(e => e.id === id ? { ...e, status } : e));
+  };
+
+  const deleteEnquiry = async (id: string) => {
+    setEnquiries(prev => prev.filter(e => e.id !== id));
+    try {
+      await deleteDoc(doc(db, 'enquiries', id));
+    } catch (e) {
+      console.error('Error deleting enquiry:', e);
+    }
   };
 
   const updateReviewStatus = async (id: string, status: Review['status']) => {
-    const revRef = doc(db, 'reviews', id);
+    setReviews(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     try {
+      const revRef = doc(db, 'reviews', id);
       await updateDoc(revRef, { status });
     } catch (e) {
-      console.warn('Error updating review:', e);
+      console.error('Error updating review:', e);
     }
-    setReviews(prev => prev.map(r => r.id === id ? { ...r, status } : r));
   };
 
   const deleteReview = async (id: string) => {
+    setReviews(prev => prev.filter(r => r.id !== id));
     try {
       await deleteDoc(doc(db, 'reviews', id));
     } catch (e) {
-      console.warn('Error deleting review:', e);
+      console.error('Error deleting review:', e);
     }
-    setReviews(prev => prev.filter(r => r.id !== id));
   };
 
   const saveFAQ = async (faq: FAQ) => {
     const faqId = faq.id || `faq-${Date.now()}`;
     const cleanFaq = { ...faq, id: faqId };
-    try {
-      await setDoc(doc(db, 'faqs', faqId), cleanFaq);
-    } catch (e) {
-      console.warn('Error saving FAQ:', e);
-    }
+
     setFaqs(prev => {
       const idx = prev.findIndex(f => f.id === faqId);
       if (idx > -1) {
@@ -652,51 +796,57 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
       }
       return [...prev, cleanFaq];
     });
+
+    try {
+      await setDoc(doc(db, 'faqs', faqId), cleanFaq, { merge: true });
+    } catch (e) {
+      console.error('Error saving FAQ:', e);
+    }
   };
 
   const deleteFAQ = async (id: string) => {
+    setFaqs(prev => prev.filter(f => f.id !== id));
     try {
       await deleteDoc(doc(db, 'faqs', id));
     } catch (e) {
-      console.warn('Error deleting FAQ:', e);
+      console.error('Error deleting FAQ:', e);
     }
-    setFaqs(prev => prev.filter(f => f.id !== id));
   };
 
   const saveHomepageContent = async (content: HomepageContent) => {
+    setHomepageContent(content);
     try {
       const ref = doc(db, 'store_settings', 'homepage_cms');
-      await setDoc(ref, content);
+      await setDoc(ref, content, { merge: true });
     } catch (e) {
-      console.warn('Error saving homepage content to Firestore:', e);
+      console.error('Error saving homepage content to Firestore:', e);
     }
-    setHomepageContent(content);
   };
 
   const saveStoreSettings = async (settings: StoreSettings) => {
+    setStoreSettings(settings);
     try {
       const ref = doc(db, 'store_settings', 'general');
-      await setDoc(ref, settings);
+      await setDoc(ref, settings, { merge: true });
     } catch (e) {
-      console.warn('Error saving store settings to Firestore:', e);
+      console.error('Error saving store settings to Firestore:', e);
     }
-    setStoreSettings(settings);
   };
 
   const saveCMSPage = async (page: CMSPage) => {
+    setCmsPages(prev => ({ ...prev, [page.slug]: page }));
     try {
       const ref = doc(db, 'cms_pages', page.slug);
-      await setDoc(ref, page);
+      await setDoc(ref, page, { merge: true });
     } catch (e) {
-      console.warn('Error saving CMS page to Firestore:', e);
+      console.error('Error saving CMS page to Firestore:', e);
     }
-    setCmsPages(prev => ({ ...prev, [page.slug]: page }));
   };
 
   // 1-Click Seed Data to Firestore
   const seedInitialDataToFirestore = async () => {
     try {
-      // 1. Seed store settings
+      // 1. Seed store settings & Homepage CMS
       await setDoc(doc(db, 'store_settings', 'general'), DEFAULT_STORE_SETTINGS);
       await setDoc(doc(db, 'store_settings', 'homepage_cms'), DEFAULT_HOMEPAGE_CONTENT);
 
@@ -725,7 +875,7 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
         await setDoc(doc(db, 'cms_pages', page.slug), page);
       }
 
-      console.log('Successfully seeded pristine Hydron catalog & CMS to Firestore!');
+      console.log('Successfully synchronized Hydron catalog & CMS to Firestore!');
     } catch (error) {
       console.error('Error seeding data:', error);
       throw error;
@@ -768,7 +918,9 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
         saveCategory,
         deleteCategory,
         updateOrderStatus,
+        deleteOrder,
         updateEnquiryStatus,
+        deleteEnquiry,
         updateReviewStatus,
         deleteReview,
         saveFAQ,

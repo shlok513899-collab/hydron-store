@@ -11,13 +11,13 @@ export const WhatsAppFloatingButton: React.FC = () => {
   const waUrl = `https://wa.me/${num}?text=${defaultText}`;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
+    <div className="fixed bottom-18 sm:bottom-6 right-4 sm:right-6 z-35 flex flex-col items-end">
       {/* Floating Popup Card */}
       {isOpen && (
-        <div className="mb-3 w-80 bg-zinc-950 text-white rounded-lg shadow-2xl border border-zinc-800 p-4 animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="mb-3 w-72 sm:w-80 bg-zinc-950 text-white rounded-lg shadow-2xl border border-zinc-800 p-4 animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div className="flex items-start justify-between border-b border-zinc-800 pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-xs">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-xs shadow-xs">
                 H
               </div>
               <div>
@@ -55,17 +55,16 @@ export const WhatsAppFloatingButton: React.FC = () => {
       {/* Main Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="group relative flex items-center gap-2.5 bg-black hover:bg-zinc-900 text-white px-4 py-3 shadow-2xl border border-zinc-700 transition-all active:scale-95 cursor-pointer rounded-full"
+        className="group relative flex items-center gap-2 bg-black hover:bg-zinc-900 text-white px-3.5 py-3 sm:px-4 sm:py-3 shadow-2xl border border-zinc-700 transition-all active:scale-95 cursor-pointer rounded-full"
         title="Chat on WhatsApp"
         id="floating-whatsapp-btn"
       >
-        <span className="relative flex h-3 w-3">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-        </span>
-        <MessageCircle className="w-5 h-5 text-white" />
-        <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline font-mono">
-          Order on WhatsApp
+        <div className="relative">
+          <MessageCircle className="w-5 h-5 fill-emerald-500 text-emerald-500 group-hover:scale-110 transition-transform" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-black animate-ping" />
+        </div>
+        <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">
+          WhatsApp Concierge
         </span>
       </button>
     </div>

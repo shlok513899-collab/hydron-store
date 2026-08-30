@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { 
   ShoppingBag, 
-  MessageSquare, 
   Star, 
   Eye, 
   Check, 
   ArrowRight,
-  ExternalLink
+  MessageCircle
 } from 'lucide-react';
 import { Product, ProductOptionColor } from '../../types';
 import { useStore } from '../../context/StoreContext';
@@ -58,44 +57,44 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <div 
-      className="group flex flex-col bg-white border border-zinc-200 hover:border-black transition-all duration-300 relative cursor-pointer"
+      className="group flex flex-col bg-white border border-zinc-200 hover:border-black transition-all duration-300 relative cursor-pointer select-none rounded-none"
       onClick={() => onNavigateToProduct(product.slug)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       id={`product-card-${product.id}`}
     >
       {/* Top Image Container */}
-      <div className="relative aspect-[4/4.8] w-full overflow-hidden bg-zinc-100 flex items-center justify-center">
+      <div className="relative aspect-[4/4.6] w-full overflow-hidden bg-zinc-100 flex items-center justify-center">
         {/* Product Image */}
         <img 
           src={displayImage} 
           alt={product.name} 
-          className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700"
+          className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
 
-        {/* Top Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+        {/* Badges */}
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 z-10">
           {product.badge && (
-            <span className="bg-black text-white text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1">
+            <span className="bg-black text-white text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 sm:px-2.5 sm:py-1">
               {product.badge}
             </span>
           )}
           {discountPercent > 0 && (
-            <span className="bg-zinc-900 text-white text-[10px] font-mono font-bold px-2 py-0.5 border border-zinc-700">
-              SAVE {discountPercent}%
+            <span className="bg-zinc-900 text-white text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 border border-zinc-700">
+              -{discountPercent}%
             </span>
           )}
         </div>
 
-        {/* Quick View Button (on Desktop Hover) */}
+        {/* Quick View Button (Desktop Hover) */}
         {onQuickView && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onQuickView(product);
             }}
-            className="absolute top-3 right-3 p-2 bg-white/90 text-black hover:bg-black hover:text-white transition-colors opacity-0 group-hover:opacity-100 z-10"
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-2 bg-white/90 text-black hover:bg-black hover:text-white transition-colors opacity-0 group-hover:opacity-100 z-10 hidden sm:flex items-center justify-center"
             title="Quick View"
           >
             <Eye className="w-4 h-4" />
@@ -105,7 +104,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Stock status indicator */}
         {!product.inStock && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-20">
-            <span className="text-white text-xs font-bold uppercase tracking-widest px-4 py-2 border border-white">
+            <span className="text-white text-[10px] sm:text-xs font-bold uppercase tracking-widest px-3 py-1.5 border border-white">
               OUT OF STOCK
             </span>
           </div>
@@ -113,36 +112,36 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Product Details Content */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-3 sm:p-4.5 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
         <div>
           {/* Category & Rating */}
-          <div className="flex items-center justify-between text-xs text-zinc-500 mb-1">
-            <span className="uppercase tracking-wider font-mono text-[11px]">
+          <div className="flex items-center justify-between text-[10px] sm:text-xs text-zinc-500 mb-1">
+            <span className="uppercase tracking-wider font-mono truncate max-w-[100px] sm:max-w-none">
               {product.category}
             </span>
-            <div className="flex items-center gap-1 text-black font-semibold">
-              <Star className="w-3.5 h-3.5 fill-black text-black" />
+            <div className="flex items-center gap-1 text-black font-semibold shrink-0">
+              <Star className="w-3 h-3 fill-black text-black" />
               <span>{product.rating.toFixed(1)}</span>
-              <span className="text-zinc-400 font-normal">({product.reviewCount})</span>
+              <span className="text-zinc-400 font-normal text-[10px]">({product.reviewCount})</span>
             </div>
           </div>
 
           {/* Product Name */}
-          <h3 className="font-extrabold text-sm sm:text-base uppercase tracking-tight text-black font-heading line-clamp-1 group-hover:underline">
+          <h3 className="font-bold sm:font-extrabold text-xs sm:text-base uppercase tracking-tight text-black font-heading line-clamp-1 group-hover:underline">
             {product.name}
           </h3>
 
           {/* Short description */}
-          <p className="text-xs text-zinc-600 line-clamp-2 mt-1 font-normal leading-relaxed">
+          <p className="text-[11px] sm:text-xs text-zinc-600 line-clamp-2 mt-1 font-normal leading-relaxed hidden sm:block">
             {product.shortDescription}
           </p>
         </div>
 
-        {/* Color Swatches & Capacity Pills */}
-        <div className="pt-2 border-t border-zinc-100 space-y-2">
-          {product.colors && product.colors.length > 0 && (
-            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-              <span className="text-[10px] uppercase font-mono text-zinc-400 mr-1">Color:</span>
+        {/* Color Swatches */}
+        {product.colors && product.colors.length > 0 && (
+          <div className="pt-1.5 border-t border-zinc-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5" onClick={(e) => e.stopPropagation()}>
+            <span className="text-[9px] sm:text-[10px] uppercase font-mono text-zinc-400 shrink-0">Finish:</span>
+            <div className="flex items-center gap-1">
               {product.colors.map((c) => (
                 <button
                   key={c.name}
@@ -150,7 +149,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     e.stopPropagation();
                     setSelectedColor(c);
                   }}
-                  className={`w-4 h-4 rounded-full border transition-all ${
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border transition-all shrink-0 ${
                     selectedColor.name === c.name 
                       ? 'ring-2 ring-black ring-offset-1 scale-110' 
                       : 'border-zinc-300 hover:scale-105'
@@ -160,66 +159,43 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 />
               ))}
             </div>
-          )}
-
-          {/* Capacity options */}
-          {product.capacities && product.capacities.length > 1 && (
-            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-              <span className="text-[10px] uppercase font-mono text-zinc-400 mr-1">Size:</span>
-              {product.capacities.map((cap) => (
-                <button
-                  key={cap}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedCapacity(cap);
-                  }}
-                  className={`text-[10px] font-mono px-1.5 py-0.5 border ${
-                    selectedCapacity === cap
-                      ? 'bg-black text-white border-black font-bold'
-                      : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:border-zinc-400'
-                  }`}
-                >
-                  {cap}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Pricing & CTA Buttons */}
-        <div className="pt-3 border-t border-zinc-100 flex flex-col space-y-2.5">
+        <div className="pt-2 border-t border-zinc-100 flex flex-col space-y-2">
           <div className="flex items-baseline justify-between">
-            <div className="flex items-baseline gap-2">
-              <span className="text-base sm:text-lg font-black text-black font-heading">
+            <div className="flex items-baseline gap-1.5 sm:gap-2">
+              <span className="text-sm sm:text-lg font-black text-black font-heading">
                 {storeSettings.currencySymbol}{product.price.toLocaleString('en-IN')}
               </span>
               {product.compareAtPrice && product.compareAtPrice > product.price && (
-                <span className="text-xs text-zinc-400 line-through font-mono">
+                <span className="text-[10px] sm:text-xs text-zinc-400 line-through font-mono">
                   {storeSettings.currencySymbol}{product.compareAtPrice.toLocaleString('en-IN')}
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
+            <span className="text-[9px] sm:text-[10px] font-mono text-zinc-500 uppercase tracking-widest hidden sm:inline">
               {product.inStock ? 'IN STOCK' : 'PRE-ORDER'}
             </span>
           </div>
 
           {/* Dual Action Buttons */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 pt-0.5">
             {/* Primary Buy Now via WhatsApp Button */}
             <button
               onClick={handleWhatsAppBuy}
-              className="flex items-center justify-center gap-1.5 bg-black text-white text-[11px] font-bold uppercase tracking-wider py-2.5 px-2 hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1 bg-black text-white text-[10px] sm:text-[11px] font-bold uppercase tracking-wider py-2 sm:py-2.5 px-1 hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer truncate"
               title="Direct purchase via WhatsApp concierge"
             >
-              <span>BUY ON WA</span>
-              <ArrowRight className="w-3 h-3" />
+              <span className="truncate">BUY WA</span>
+              <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
             </button>
 
             {/* Secondary Add to Cart */}
             <button
               onClick={handleAddToCart}
-              className={`flex items-center justify-center gap-1 text-[11px] font-bold uppercase tracking-wider py-2.5 px-2 border border-black transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider py-2 sm:py-2.5 px-1 border border-black transition-all cursor-pointer truncate ${
                 addedAnimation 
                   ? 'bg-black text-white' 
                   : 'bg-white text-black hover:bg-zinc-100'
@@ -227,13 +203,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             >
               {addedAnimation ? (
                 <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>ADDED</span>
+                  <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                  <span className="truncate">ADDED</span>
                 </>
               ) : (
                 <>
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>BAG</span>
+                  <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                  <span className="truncate">BAG</span>
                 </>
               )}
             </button>

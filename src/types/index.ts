@@ -176,6 +176,7 @@ export interface FAQ {
   question: string;
   answer: string;
   category: string;
+  order?: number;
 }
 
 export type Enquiry = LeadEnquiry;

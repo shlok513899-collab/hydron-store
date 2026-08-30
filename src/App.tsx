@@ -7,6 +7,7 @@ import { CartDrawer } from './components/common/CartDrawer';
 import { SearchModal } from './components/common/SearchModal';
 import { QuickViewModal } from './components/common/QuickViewModal';
 import { WhatsAppFloatingButton } from './components/common/WhatsAppFloatingButton';
+import { MobileBottomNav } from './components/common/MobileBottomNav';
 
 import { HomePage } from './pages/HomePage';
 import { ShopPage } from './pages/ShopPage';
@@ -194,6 +195,7 @@ function MainRouter() {
         <>
           <Footer onNavigate={handleNavigate} />
           <WhatsAppFloatingButton />
+          <MobileBottomNav currentPath={currentPath} onNavigate={handleNavigate} />
         </>
       )}
 
