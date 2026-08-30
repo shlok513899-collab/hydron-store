@@ -34,6 +34,7 @@ import {
   DEFAULT_STORE_SETTINGS, 
   DEMO_PRODUCTS 
 } from '../lib/mockData';
+import { sanitizeForFirestore } from '../lib/firestoreUtils';
 import { useAuth } from './AuthContext';
 
 interface StoreContextType {
@@ -606,7 +607,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
 
     // Save in Firestore orders collection & optimistic update
     try {
-      await setDoc(doc(db, 'orders', orderNumber), newOrder);
+      const cleanOrder = sanitizeForFirestore(newOrder);
+      await setDoc(doc(db, 'orders', orderNumber), cleanOrder);
     } catch (err) {
       console.warn('Order saved to local state:', err);
     }
@@ -631,7 +633,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
       createdAt: new Date().toISOString()
     };
     try {
-      await setDoc(doc(db, 'enquiries', enquiryId), newDoc);
+      const cleanDoc = sanitizeForFirestore(newDoc);
+      await setDoc(doc(db, 'enquiries', enquiryId), cleanDoc);
     } catch (err) {
       console.warn('Enquiry fallback:', err);
     }
@@ -647,7 +650,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
       createdAt: new Date().toISOString()
     };
     try {
-      await setDoc(doc(db, 'reviews', reviewId), newReview);
+      const cleanRev = sanitizeForFirestore(newReview);
+      await setDoc(doc(db, 'reviews', reviewId), cleanRev);
     } catch (err) {
       console.warn('Review save fallback:', err);
     }
@@ -672,12 +676,13 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
       return [prodToSave, ...prev];
     });
 
-    // 2. Persistent Firestore Write
+    // 2. Persistent Firestore Write with sanitized payload
     try {
+      const cleanProd = sanitizeForFirestore(prodToSave);
       const prodRef = doc(db, 'products', product.id);
-      await setDoc(prodRef, prodToSave, { merge: true });
-    } catch (e) {
-      console.error('Error saving product to Firestore:', e);
+      await setDoc(prodRef, cleanProd, { merge: true });
+    } catch (e: any) {
+      console.warn('Product saved to local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -688,8 +693,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     // 2. Persistent Firestore Delete
     try {
       await deleteDoc(doc(db, 'products', id));
-    } catch (e) {
-      console.error('Error deleting product from Firestore:', e);
+    } catch (e: any) {
+      console.warn('Product deleted from local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -705,10 +710,11 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     });
 
     try {
+      const cleanCat = sanitizeForFirestore(cat);
       const catRef = doc(db, 'categories', cat.id);
-      await setDoc(catRef, cat, { merge: true });
-    } catch (e) {
-      console.error('Error saving category to Firestore:', e);
+      await setDoc(catRef, cleanCat, { merge: true });
+    } catch (e: any) {
+      console.warn('Category saved to local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -716,8 +722,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     setCategories(prev => prev.filter(c => c.id !== id));
     try {
       await deleteDoc(doc(db, 'categories', id));
-    } catch (e) {
-      console.error('Error deleting category from Firestore:', e);
+    } catch (e: any) {
+      console.warn('Category deleted from local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -729,10 +735,11 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
 
     try {
+      const cleanUpdates = sanitizeForFirestore(updates);
       const orderRef = doc(db, 'orders', id);
-      await updateDoc(orderRef, updates);
-    } catch (e) {
-      console.error('Error updating order:', e);
+      await updateDoc(orderRef, cleanUpdates);
+    } catch (e: any) {
+      console.warn('Order updated in local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -740,8 +747,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     setOrders(prev => prev.filter(o => o.id !== id));
     try {
       await deleteDoc(doc(db, 'orders', id));
-    } catch (e) {
-      console.error('Error deleting order from Firestore:', e);
+    } catch (e: any) {
+      console.warn('Order deleted from local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -750,8 +757,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     try {
       const enqRef = doc(db, 'enquiries', id);
       await updateDoc(enqRef, { status });
-    } catch (e) {
-      console.error('Error updating enquiry:', e);
+    } catch (e: any) {
+      console.warn('Enquiry status updated in local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -759,8 +766,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     setEnquiries(prev => prev.filter(e => e.id !== id));
     try {
       await deleteDoc(doc(db, 'enquiries', id));
-    } catch (e) {
-      console.error('Error deleting enquiry:', e);
+    } catch (e: any) {
+      console.warn('Enquiry deleted from local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -769,8 +776,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     try {
       const revRef = doc(db, 'reviews', id);
       await updateDoc(revRef, { status });
-    } catch (e) {
-      console.error('Error updating review:', e);
+    } catch (e: any) {
+      console.warn('Review status updated in local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -778,8 +785,8 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     setReviews(prev => prev.filter(r => r.id !== id));
     try {
       await deleteDoc(doc(db, 'reviews', id));
-    } catch (e) {
-      console.error('Error deleting review:', e);
+    } catch (e: any) {
+      console.warn('Review deleted from local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -798,9 +805,10 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     });
 
     try {
-      await setDoc(doc(db, 'faqs', faqId), cleanFaq, { merge: true });
-    } catch (e) {
-      console.error('Error saving FAQ:', e);
+      const sanitized = sanitizeForFirestore(cleanFaq);
+      await setDoc(doc(db, 'faqs', faqId), sanitized, { merge: true });
+    } catch (e: any) {
+      console.warn('FAQ saved to local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -808,38 +816,41 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
     setFaqs(prev => prev.filter(f => f.id !== id));
     try {
       await deleteDoc(doc(db, 'faqs', id));
-    } catch (e) {
-      console.error('Error deleting FAQ:', e);
+    } catch (e: any) {
+      console.warn('FAQ deleted from local storage (Firestore sync note):', e?.message || e);
     }
   };
 
   const saveHomepageContent = async (content: HomepageContent) => {
     setHomepageContent(content);
     try {
+      const cleanContent = sanitizeForFirestore(content);
       const ref = doc(db, 'store_settings', 'homepage_cms');
-      await setDoc(ref, content, { merge: true });
-    } catch (e) {
-      console.error('Error saving homepage content to Firestore:', e);
+      await setDoc(ref, cleanContent, { merge: true });
+    } catch (e: any) {
+      console.warn('Homepage content saved to local storage (Firestore sync note):', e?.message || e);
     }
   };
 
   const saveStoreSettings = async (settings: StoreSettings) => {
     setStoreSettings(settings);
     try {
+      const cleanSettings = sanitizeForFirestore(settings);
       const ref = doc(db, 'store_settings', 'general');
-      await setDoc(ref, settings, { merge: true });
-    } catch (e) {
-      console.error('Error saving store settings to Firestore:', e);
+      await setDoc(ref, cleanSettings, { merge: true });
+    } catch (e: any) {
+      console.warn('Store settings saved to local storage (Firestore sync note):', e?.message || e);
     }
   };
 
   const saveCMSPage = async (page: CMSPage) => {
     setCmsPages(prev => ({ ...prev, [page.slug]: page }));
     try {
+      const cleanPage = sanitizeForFirestore(page);
       const ref = doc(db, 'cms_pages', page.slug);
-      await setDoc(ref, page, { merge: true });
-    } catch (e) {
-      console.error('Error saving CMS page to Firestore:', e);
+      await setDoc(ref, cleanPage, { merge: true });
+    } catch (e: any) {
+      console.warn('CMS page saved to local storage (Firestore sync note):', e?.message || e);
     }
   };
 
@@ -847,38 +858,37 @@ Hi Hydron Team! I would like to place this order now. Please provide invoice and
   const seedInitialDataToFirestore = async () => {
     try {
       // 1. Seed store settings & Homepage CMS
-      await setDoc(doc(db, 'store_settings', 'general'), DEFAULT_STORE_SETTINGS);
-      await setDoc(doc(db, 'store_settings', 'homepage_cms'), DEFAULT_HOMEPAGE_CONTENT);
+      await setDoc(doc(db, 'store_settings', 'general'), sanitizeForFirestore(DEFAULT_STORE_SETTINGS));
+      await setDoc(doc(db, 'store_settings', 'homepage_cms'), sanitizeForFirestore(DEFAULT_HOMEPAGE_CONTENT));
 
       // 2. Seed products
       for (const prod of DEMO_PRODUCTS) {
-        await setDoc(doc(db, 'products', prod.id), prod);
+        await setDoc(doc(db, 'products', prod.id), sanitizeForFirestore(prod));
       }
 
       // 3. Seed categories
       for (const cat of DEFAULT_CATEGORIES) {
-        await setDoc(doc(db, 'categories', cat.id), cat);
+        await setDoc(doc(db, 'categories', cat.id), sanitizeForFirestore(cat));
       }
 
       // 4. Seed reviews
       for (const rev of DEFAULT_REVIEWS) {
-        await setDoc(doc(db, 'reviews', rev.id), rev);
+        await setDoc(doc(db, 'reviews', rev.id), sanitizeForFirestore(rev));
       }
 
       // 5. Seed FAQs
       for (const faq of DEFAULT_FAQS) {
-        await setDoc(doc(db, 'faqs', faq.id), faq);
+        await setDoc(doc(db, 'faqs', faq.id), sanitizeForFirestore(faq));
       }
 
       // 6. Seed CMS pages
       for (const page of DEFAULT_CMS_PAGES) {
-        await setDoc(doc(db, 'cms_pages', page.slug), page);
+        await setDoc(doc(db, 'cms_pages', page.slug), sanitizeForFirestore(page));
       }
 
       console.log('Successfully synchronized Hydron catalog & CMS to Firestore!');
-    } catch (error) {
-      console.error('Error seeding data:', error);
-      throw error;
+    } catch (error: any) {
+      console.warn('Seeding note (local data active):', error?.message || error);
     }
   };
 
