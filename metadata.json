@@ -1,0 +1,6 @@
+{
+  "name": "Hydron | Premium Luxury Water Bottles",
+  "description": "Engineered for life. Discover Hydron's minimalist luxury stainless steel insulated water bottles with 24h cold / 12h hot temperature lock technology, shop by collection, and order seamlessly via WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

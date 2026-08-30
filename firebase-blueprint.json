@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User customer account profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "mobile": { "type": "string", "maxLength": 25 },
+        "role": { "type": "string", "enum": ["customer", "admin"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "name", "email"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Admin authorization entry",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "grantedAt": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Store bottle product listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "slug": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 100 },
+        "price": { "type": "number" },
+        "compareAtPrice": { "type": "number" },
+        "shortDescription": { "type": "string", "maxLength": 500 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "coverImage": { "type": "string", "maxLength": 1000 },
+        "sku": { "type": "string", "maxLength": 50 },
+        "stockCount": { "type": "number" },
+        "inStock": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" }
+      },
+      "required": ["name", "slug", "price", "coverImage", "category"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product collection category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "slug": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "image": { "type": "string", "maxLength": 1000 },
+        "displayOrder": { "type": "number" }
+      },
+      "required": ["name", "slug"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 50 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerEmail": { "type": "string", "maxLength": 120 },
+        "customerMobile": { "type": "string", "maxLength": 25 },
+        "subtotal": { "type": "number" },
+        "shippingFee": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"] },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["customerName", "customerMobile", "total", "status"]
+    },
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "Contact form inquiry or product lead",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "mobile": { "type": "string", "maxLength": 25 },
+        "subject": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 2000 },
+        "type": { "type": "string", "enum": ["CONTACT_FORM", "PRODUCT_ENQUIRY", "NEWSLETTER", "CUSTOM_ORDER"] },
+        "status": { "type": "string", "enum": ["NEW", "CONTACTED", "RESOLVED"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email", "message", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product review submitted by customer",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "rating": { "type": "number" },
+        "title": { "type": "string", "maxLength": 150 },
+        "comment": { "type": "string", "maxLength": 2000 },
+        "verifiedBuyer": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["APPROVED", "PENDING", "REJECTED"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["productId", "userName", "rating", "comment", "status"]
+    },
+    "FAQ": {
+      "title": "FAQ",
+      "description": "Frequently asked question item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "question": { "type": "string", "maxLength": 500 },
+        "answer": { "type": "string", "maxLength": 3000 },
+        "category": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["question", "answer"]
+    },
+    "CMSPage": {
+      "title": "CMSPage",
+      "description": "Customizable page content",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 150 },
+        "subtitle": { "type": "string", "maxLength": 250 },
+        "content": { "type": "string", "maxLength": 10000 },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["slug", "title"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Store configuration and homepage CMS metadata",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string", "maxLength": 100 },
+        "whatsappNumber": { "type": "string", "maxLength": 30 },
+        "supportEmail": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["storeName", "whatsappNumber"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User customer accounts and profile data"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Authorized admin users document collection"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Store bottle product catalog"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Store product collections and categories"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer purchase and WhatsApp orders"
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": { "$ref": "#/entities/Enquiry" },
+      "description": "Customer inquiries, leads, and newsletter subscriptions"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Product ratings and reviews"
+    },
+    "/cms_pages/{pageId}": {
+      "schema": { "$ref": "#/entities/CMSPage" },
+      "description": "Customizable legal, FAQ, and info pages"
+    },
+    "/faqs/{faqId}": {
+      "schema": { "$ref": "#/entities/FAQ" },
+      "description": "Store frequently asked questions"
+    },
+    "/store_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/StoreSettings" },
+      "description": "Global store settings, WhatsApp concierge number, and homepage CMS configuration"
+    }
+  }
+}
